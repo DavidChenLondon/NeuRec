@@ -48,7 +48,7 @@ class AbstractRecommender(object):
 class SeqAbstractRecommender(AbstractRecommender):
     def __init__(self, dataset, conf):
         if dataset.time_matrix is None:
-            raise ValueError("Dataset does not contant time infomation!")
+            raise ValueError("Dataset does not contain time information!")
         super(SeqAbstractRecommender, self).__init__(dataset, conf)
 
 
