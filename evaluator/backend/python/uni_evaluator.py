@@ -3,11 +3,11 @@
 """
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor
-from util import DataIterator
-from util import typeassert, argmax_top_k
-from evaluator.abstract_evaluator import AbstractEvaluator
+from NeuRec.util import DataIterator
+from NeuRec.util import typeassert, argmax_top_k
+from NeuRec.evaluator.abstract_evaluator import AbstractEvaluator
 from .metric import metric_dict
-from util import pad_sequences
+from NeuRec.util import pad_sequences
 
 
 class UniEvaluator(AbstractEvaluator):

@@ -5,14 +5,16 @@ Processing datasets.
 """
 
 import os
+
+import numpy as np
 import pandas as pd
 from scipy.sparse import csr_matrix
-from util.tool import csr_to_user_dict_bytime, csr_to_user_dict
+
 from .utils import check_md5
-from util.logger import Logger
-from util import randint_choice
-import numpy as np
 from .utils import filter_data, split_by_ratio, split_by_loo
+from ..util import randint_choice
+from ..util.logger import Logger
+from ..util.tool import csr_to_user_dict_bytime, csr_to_user_dict
 
 
 class Dataset(object):
@@ -36,8 +38,10 @@ class Dataset(object):
         data_path = config["data.input.path"]
         ori_prefix = os.path.join(data_path, self.dataset_name)
 
-        saved_path = os.path.join(data_path, "_tmp_"+self.dataset_name)
-        saved_prefix = "%s_%s_u%d_i%d" % (self.dataset_name, config["splitter"], config["user_min"], config["item_min"])
+        saved_path = os.path.join(data_path, "_tmp_" + self.dataset_name)
+        saved_prefix = "%s_%s_u%d_i%d" % (
+            self.dataset_name, config["splitter"], config["user_min"],
+            config["item_min"])
         if "by_time" in config and config["by_time"] is True:
             saved_prefix += "_by_time"
 
@@ -78,7 +82,8 @@ class Dataset(object):
                        "UI": ["user", "item"]}
         file_format = config["data.column.format"]
         if file_format not in format_dict:
-            raise ValueError("'%s' is an invalid data column format!" % file_format)
+            raise ValueError(
+                "'%s' is an invalid data column format!" % file_format)
 
         ori_prefix, saved_prefix = self._get_data_path(config)
         splitter = config["splitter"]
@@ -92,17 +97,24 @@ class Dataset(object):
         if self._check_saved_data(splitter, ori_prefix, saved_prefix):
             print("load saved data...")
             # load saved data
-            train_data = pd.read_csv(train_file, sep=sep, header=None, names=columns)
-            test_data = pd.read_csv(test_file, sep=sep, header=None, names=columns)
+            train_data = pd.read_csv(train_file, sep=sep, header=None,
+                                     names=columns)
+            test_data = pd.read_csv(test_file, sep=sep, header=None,
+                                    names=columns)
 
-            user_map = pd.read_csv(user_map_file, sep=sep, header=None, names=["user", "id"])
-            item_map = pd.read_csv(item_map_file, sep=sep, header=None, names=["item", "id"])
-            self.userids = {user: uid for user, uid in zip(user_map["user"], user_map["id"])}
-            self.itemids = {item: iid for item, iid in zip(item_map["item"], item_map["id"])}
+            user_map = pd.read_csv(user_map_file, sep=sep, header=None,
+                                   names=["user", "id"])
+            item_map = pd.read_csv(item_map_file, sep=sep, header=None,
+                                   names=["item", "id"])
+            self.userids = {user: uid for user, uid in
+                            zip(user_map["user"], user_map["id"])}
+            self.itemids = {item: iid for item, iid in
+                            zip(item_map["item"], item_map["id"])}
         else:  # split and save data
             print("split and save data...")
             by_time = config["by_time"] if file_format == "UIRT" else False
-            train_data, test_data = self._split_data(ori_prefix, saved_prefix, columns, by_time, config)
+            train_data, test_data = self._split_data(ori_prefix, saved_prefix,
+                                                     columns, by_time, config)
 
         all_data = pd.concat([train_data, test_data])
         self.num_users = max(all_data["user"]) + 1
@@ -116,16 +128,20 @@ class Dataset(object):
             train_ratings = train_data["rating"]
             test_ratings = test_data["rating"]
 
-        self.train_matrix = csr_matrix((train_ratings, (train_data["user"], train_data["item"])),
-                                       shape=(self.num_users, self.num_items))
-        self.test_matrix = csr_matrix((test_ratings, (test_data["user"], test_data["item"])),
-                                      shape=(self.num_users, self.num_items))
+        self.train_matrix = csr_matrix(
+            (train_ratings, (train_data["user"], train_data["item"])),
+            shape=(self.num_users, self.num_items))
+        self.test_matrix = csr_matrix(
+            (test_ratings, (test_data["user"], test_data["item"])),
+            shape=(self.num_users, self.num_items))
 
         if file_format == "UIRT":
-            self.time_matrix = csr_matrix((train_data["time"], (train_data["user"], train_data["item"])),
-                                          shape=(self.num_users, self.num_items))
+            self.time_matrix = csr_matrix(
+                (train_data["time"], (train_data["user"], train_data["item"])),
+                shape=(self.num_users, self.num_items))
 
-        self.negative_matrix = self._load_test_neg_items(all_data, config, saved_prefix)
+        self.negative_matrix = self._load_test_neg_items(all_data, config,
+                                                         saved_prefix)
 
     def _split_data(self, ori_prefix, saved_prefix, columns, by_time, config):
         splitter = config["splitter"]
@@ -139,24 +155,33 @@ class Dataset(object):
 
         if splitter in ("loo", "ratio"):
             rating_file = ori_prefix + ".rating"
-            all_data = pd.read_csv(rating_file, sep=sep, header=None, names=columns)
-            filtered_data = filter_data(all_data, user_min=user_min, item_min=item_min)
+            all_data = pd.read_csv(rating_file, sep=sep, header=None,
+                                   names=columns)
+            filtered_data = filter_data(all_data, user_min=user_min,
+                                        item_min=item_min)
             if splitter == "ratio":
                 ratio = config["ratio"]
-                train_data, test_data = split_by_ratio(filtered_data, ratio=ratio, by_time=by_time)
+                train_data, test_data = split_by_ratio(filtered_data,
+                                                       ratio=ratio,
+                                                       by_time=by_time)
             elif splitter == "loo":
-                train_data, test_data = split_by_loo(filtered_data, by_time=by_time)
+                train_data, test_data = split_by_loo(filtered_data,
+                                                     by_time=by_time)
             else:
                 raise ValueError("There is not splitter '%s'" % splitter)
-            with open(saved_prefix+".md5", "w") as md5_out:
+            with open(saved_prefix + ".md5", "w") as md5_out:
                 md5_out.writelines(check_md5(rating_file))
         elif splitter == "given":
+            print(f"use splitter={splitter}")
             train_file = ori_prefix + ".train"
             test_file = ori_prefix + ".test"
-            train_data = pd.read_csv(train_file, sep=sep, header=None, names=columns)
-            test_data = pd.read_csv(test_file, sep=sep, header=None, names=columns)
-            with open(saved_prefix+".md5", "w") as md5_out:
-                md5_out.writelines('\n'.join([check_md5(train_file), check_md5(test_file)]))
+            train_data = pd.read_csv(train_file, sep=sep, header=None,
+                                     names=columns)
+            test_data = pd.read_csv(test_file, sep=sep, header=None,
+                                    names=columns)
+            with open(saved_prefix + ".md5", "w") as md5_out:
+                md5_out.writelines(
+                    '\n'.join([check_md5(train_file), check_md5(test_file)]))
                 # md5_out.writelines(check_md5(test_file))
         else:
             raise ValueError("'%s' is an invalid splitter!" % splitter)
@@ -164,23 +189,25 @@ class Dataset(object):
         # remap id
         all_data = pd.concat([train_data, test_data])
         unique_user = all_data["user"].unique()
-        self.userids = pd.Series(data=range(len(unique_user)), index=unique_user).to_dict()
+        self.userids = pd.Series(data=range(len(unique_user)),
+                                 index=unique_user).to_dict()
         train_data["user"] = train_data["user"].map(self.userids)
         test_data["user"] = test_data["user"].map(self.userids)
 
         unique_item = all_data["item"].unique()
-        self.itemids = pd.Series(data=range(len(unique_item)), index=unique_item).to_dict()
+        self.itemids = pd.Series(data=range(len(unique_item)),
+                                 index=unique_item).to_dict()
         train_data["item"] = train_data["item"].map(self.itemids)
         test_data["item"] = test_data["item"].map(self.itemids)
 
         # save files
-        np.savetxt(saved_prefix+".train", train_data, fmt='%d', delimiter=sep)
-        np.savetxt(saved_prefix+".test", test_data, fmt='%d', delimiter=sep)
+        np.savetxt(saved_prefix + ".train", train_data, fmt='%d', delimiter=sep)
+        np.savetxt(saved_prefix + ".test", test_data, fmt='%d', delimiter=sep)
 
         user2id = [[user, id] for user, id in self.userids.items()]
         item2id = [[item, id] for item, id in self.itemids.items()]
-        np.savetxt(saved_prefix+".user2id", user2id, fmt='%s', delimiter=sep)
-        np.savetxt(saved_prefix+".item2id", item2id, fmt='%s', delimiter=sep)
+        np.savetxt(saved_prefix + ".user2id", user2id, fmt='%s', delimiter=sep)
+        np.savetxt(saved_prefix + ".item2id", item2id, fmt='%s', delimiter=sep)
 
         # remap test negative items and save to a file
         neg_item_file = ori_prefix + ".neg"
@@ -194,14 +221,15 @@ class Dataset(object):
                     neg_item_list.append(user_items)
 
             test_neg = len(neg_item_list[0]) - 1
-            np.savetxt("%s.neg%d" % (saved_prefix, test_neg), neg_item_list, fmt='%d', delimiter=sep)
+            np.savetxt("%s.neg%d" % (saved_prefix, test_neg), neg_item_list,
+                       fmt='%d', delimiter=sep)
 
         all_remapped_data = pd.concat([train_data, test_data])
         self.num_users = max(all_remapped_data["user"]) + 1
         self.num_items = max(all_remapped_data["item"]) + 1
         self.num_ratings = len(all_remapped_data)
 
-        logger = Logger(saved_prefix+".info")
+        logger = Logger(saved_prefix + ".info")
         logger.info(os.path.basename(saved_prefix))
         logger.info(self.__str__())
 
@@ -220,11 +248,13 @@ class Dataset(object):
                 for user, u_data in grouped_user:
                     line = [user]
                     line.extend(randint_choice(self.num_items, size=number_neg,
-                                               replace=False, exclusion=u_data["item"].tolist()))
+                                               replace=False, exclusion=u_data[
+                            "item"].tolist()))
                     neg_items.append(line)
 
                 neg_items = pd.DataFrame(neg_items)
-                np.savetxt("%s.neg%d" % (saved_prefix, number_neg), neg_items, fmt='%d', delimiter=sep)
+                np.savetxt("%s.neg%d" % (saved_prefix, number_neg), neg_items,
+                           fmt='%d', delimiter=sep)
             else:
                 # load file
                 neg_items = pd.read_csv(neg_items_file, sep=sep, header=None)
@@ -234,21 +264,24 @@ class Dataset(object):
                 user_list.extend([line[0]] * (len(line) - 1))
                 item_list.extend(line[1:])
 
-            neg_matrix = csr_matrix(([1] * len(user_list), (user_list, item_list)),
-                                    shape=(self.num_users, self.num_items))
+            neg_matrix = csr_matrix(
+                ([1] * len(user_list), (user_list, item_list)),
+                shape=(self.num_users, self.num_items))
 
         return neg_matrix
 
     def __str__(self):
         num_users, num_items = self.num_users, self.num_items
         num_ratings = self.num_ratings
-        sparsity = 1 - 1.0*num_ratings/(num_users*num_items)
+        sparsity = 1 - 1.0 * num_ratings / (num_users * num_items)
         data_info = ["Dataset name: %s" % self.dataset_name,
                      "The number of users: %d" % num_users,
                      "The number of items: %d" % num_items,
                      "The number of ratings: %d" % num_ratings,
-                     "Average actions of users: %.2f" % (1.0*num_ratings/num_users),
-                     "Average actions of items: %.2f" % (1.0*num_ratings/num_items),
+                     "Average actions of users: %.2f" % (
+                             1.0 * num_ratings / num_users),
+                     "Average actions of items: %.2f" % (
+                             1.0 * num_ratings / num_items),
                      "The sparsity of the dataset: %.6f%%" % (sparsity * 100)]
         data_info = "\n".join(data_info)
         return data_info
@@ -258,7 +291,8 @@ class Dataset(object):
 
     def get_user_train_dict(self, by_time=False):
         if by_time:
-            train_dict = csr_to_user_dict_bytime(self.time_matrix, self.train_matrix)
+            train_dict = csr_to_user_dict_bytime(self.time_matrix,
+                                                 self.train_matrix)
         else:
             train_dict = csr_to_user_dict(self.train_matrix)
 

@@ -1,8 +1,8 @@
 """
 @author: Zhongchuan Sun
 """
-from util import DataIterator
-from util.cython.random_choice import batch_randint_choice
+from NeuRec.util import DataIterator
+from NeuRec.util.cython.random_choice import batch_randint_choice
 from collections import Iterable
 import numpy as np
 

@@ -1,10 +1,9 @@
 """
 @author: Zhongchuan Sun
 """
-import sys
-import os
 import logging
-from util import Configurator
+import os
+import sys
 
 
 class Logger(object):
@@ -77,4 +76,3 @@ if __name__ == '__main__':
     log.warning('warning')
     log.error('error')
     log.critical('critical')
-

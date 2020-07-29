@@ -1,8 +1,8 @@
-from evaluator import ProxyEvaluator
+from NeuRec.evaluator import ProxyEvaluator
 import pandas as pd
 import numpy as np
 import scipy.sparse as sp
-from util import Logger
+from NeuRec.util import Logger
 import os
 import time
 
@@ -40,7 +40,7 @@ class AbstractRecommender(object):
 
     def train_model(self):
         raise NotImplementedError
-    
+
     def predict(self, user_ids, items):
         raise NotImplementedError
 

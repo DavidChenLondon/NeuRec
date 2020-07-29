@@ -1,55 +1,56 @@
-import tensorflow as tf
-import numpy as np
-from inspect import signature
-from functools import wraps
 import heapq
 import itertools
 import time
+from functools import wraps
+from inspect import signature
+
+import numpy as np
+import tensorflow as tf
 
 
-def activation_function(act,act_input):
-        act_func = None
-        if act == "sigmoid":
-            act_func = tf.nn.sigmoid(act_input)
-        elif act == "tanh":
-            act_func = tf.nn.tanh(act_input)
-            
-        elif act == "relu":
-            act_func = tf.nn.relu(act_input)
-        
-        elif act == "elu":
-            act_func = tf.nn.elu(act_input)
-           
-        elif act == "identity":
-            act_func = tf.identity(act_input)
-            
-        elif act == "softmax":
-            act_func = tf.nn.softmax(act_input)
-         
-        elif act == "selu":
-            act_func = tf.nn.selu(act_input) 
-        
-        else:
-            raise NotImplementedError("ERROR")
-        return act_func  
+def activation_function(act, act_input):
+    act_func = None
+    if act == "sigmoid":
+        act_func = tf.nn.sigmoid(act_input)
+    elif act == "tanh":
+        act_func = tf.nn.tanh(act_input)
+
+    elif act == "relu":
+        act_func = tf.nn.relu(act_input)
+
+    elif act == "elu":
+        act_func = tf.nn.elu(act_input)
+
+    elif act == "identity":
+        act_func = tf.identity(act_input)
+
+    elif act == "softmax":
+        act_func = tf.nn.softmax(act_input)
+
+    elif act == "selu":
+        act_func = tf.nn.selu(act_input)
+
+    else:
+        raise NotImplementedError("ERROR")
+    return act_func
 
 
 def get_data_format(data_format):
     if data_format == "UIRT":
         columns = ["user", "item", "rating", "time"]
-        
+
     elif data_format == "UIR":
         columns = ["user", "item", "rating"]
-    
+
     elif data_format == "UIT":
-        columns = ["user", "item", "time"] 
-        
+        columns = ["user", "item", "time"]
+
     elif data_format == "UI":
-        columns = ["user", "item"]    
-    
+        columns = ["user", "item"]
+
     else:
         raise ValueError("please choose a correct data format. ")
-    
+
     return columns
 
 
@@ -60,41 +61,42 @@ def csr_to_user_dict(train_matrix):
     """
     train_dict = {}
     for idx, value in enumerate(train_matrix):
-        if any(value.indices):
+        # if any(value.indices):
+        if len(value.indices) > 0:
             train_dict[idx] = value.indices.copy().tolist()
     return train_dict
 
 
-def csr_to_user_dict_bytime(time_matrix,train_matrix):
+def csr_to_user_dict_bytime(time_matrix, train_matrix):
     train_dict = {}
     time_matrix = time_matrix
     user_pos_items = csr_to_user_dict(train_matrix)
     for u, items in user_pos_items.items():
-        sorted_items = sorted(items, key=lambda x: time_matrix[u,x])
+        sorted_items = sorted(items, key=lambda x: time_matrix[u, x])
         train_dict[u] = np.array(sorted_items, dtype=np.int32).tolist()
 
     return train_dict
 
 
 def get_initializer(init_method, stddev):
-        if init_method == 'tnormal':
-            return tf.truncated_normal_initializer(stddev=stddev)
-        elif init_method == 'uniform':
-            return tf.random_uniform_initializer(-stddev, stddev)
-        elif init_method == 'normal':
-            return tf.random_normal_initializer(stddev=stddev)
-        elif init_method == 'xavier_normal':
-            return tf.contrib.layers.xavier_initializer(uniform=False)
-        elif init_method == 'xavier_uniform':
-            return tf.contrib.layers.xavier_initializer(uniform=True)
-        elif init_method == 'he_normal':
-            return tf.contrib.layers.variance_scaling_initializer(
-                factor=2.0, mode='FAN_IN', uniform=False)
-        elif init_method == 'he_uniform':
-            return tf.contrib.layers.variance_scaling_initializer(
-                factor=2.0, mode='FAN_IN', uniform=True)
-        else:
-            return tf.truncated_normal_initializer(stddev=stddev)  
+    if init_method == 'tnormal':
+        return tf.truncated_normal_initializer(stddev=stddev)
+    elif init_method == 'uniform':
+        return tf.random_uniform_initializer(-stddev, stddev)
+    elif init_method == 'normal':
+        return tf.random_normal_initializer(stddev=stddev)
+    elif init_method == 'xavier_normal':
+        return tf.contrib.layers.xavier_initializer(uniform=False)
+    elif init_method == 'xavier_uniform':
+        return tf.contrib.layers.xavier_initializer(uniform=True)
+    elif init_method == 'he_normal':
+        return tf.contrib.layers.variance_scaling_initializer(
+            factor=2.0, mode='FAN_IN', uniform=False)
+    elif init_method == 'he_uniform':
+        return tf.contrib.layers.variance_scaling_initializer(
+            factor=2.0, mode='FAN_IN', uniform=True)
+    else:
+        return tf.truncated_normal_initializer(stddev=stddev)
 
 
 def noise_validator(noise, allowed_noises):
@@ -110,7 +112,7 @@ def noise_validator(noise, allowed_noises):
                 return False
     except:
         return False
-    pass 
+    pass
 
 
 def randint_choice(high, size=None, replace=True, p=None, exclusion=None):
@@ -140,9 +142,13 @@ def typeassert(*type_args, **type_kwargs):
             for name, value in bound_values.arguments.items():
                 if name in bound_types:
                     if not isinstance(value, bound_types[name]):
-                        raise TypeError('Argument {} must be {}'.format(name, bound_types[name]))
+                        raise TypeError('Argument {} must be {}'.format(name,
+                                                                        bound_types[
+                                                                            name]))
             return func(*args, **kwargs)
+
         return wrapper
+
     return decorate
 
 
@@ -203,6 +209,7 @@ def inner_product(a, b, name="inner_product"):
 def timer(func):
     """The timer decorator
     """
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         start_time = time.time()
@@ -210,6 +217,7 @@ def timer(func):
         end_time = time.time()
         print("%s function cost: %fs" % (func.__name__, end_time - start_time))
         return result
+
     return wrapper
 
 

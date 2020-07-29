@@ -1,7 +1,7 @@
 """
 @author: Zhongchuan Sun
 """
-from util import typeassert
+from NeuRec.util import typeassert
 from .abstract_evaluator import AbstractEvaluator
 from .backend import UniEvaluator
 from .grouped_evaluator import GroupedEvaluator
