@@ -1,10 +1,13 @@
-from NeuRec.evaluator import ProxyEvaluator
-import pandas as pd
-import numpy as np
-import scipy.sparse as sp
-from NeuRec.util import Logger
 import os
 import time
+
+import numpy as np
+import pandas as pd
+import scipy.sparse as sp
+
+from NeuRec.evaluator import ProxyEvaluator
+from NeuRec.util import Logger
+
 
 def _create_logger(config, data_name):
     # create a logger
@@ -55,7 +58,8 @@ class SeqAbstractRecommender(AbstractRecommender):
 class SocialAbstractRecommender(AbstractRecommender):
     def __init__(self, dataset, conf):
         super(SocialAbstractRecommender, self).__init__(dataset, conf)
-        social_users = pd.read_csv(conf["social_file"], sep=conf["data.convert.separator"],
+        social_users = pd.read_csv(conf["social_file"],
+                                   sep=conf["data.convert.separator"],
                                    header=None, names=["user", "friend"])
         users_key = np.array(list(dataset.userids.keys()))
         index = np.in1d(social_users["user"], users_key)
@@ -69,5 +73,6 @@ class SocialAbstractRecommender(AbstractRecommender):
         friend = social_users["friend"]
         friend_id = [dataset.userids[u] for u in friend]
         num_users, num_items = dataset.train_matrix.shape
-        self.social_matrix = sp.csr_matrix(([1] * len(user_id), (user_id, friend_id)),
-                                           shape=(num_users, num_users))
+        self.social_matrix = sp.csr_matrix(
+            ([1] * len(user_id), (user_id, friend_id)),
+            shape=(num_users, num_users))

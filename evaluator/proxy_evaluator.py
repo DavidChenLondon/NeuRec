@@ -1,6 +1,8 @@
 """
 @author: Zhongchuan Sun
 """
+from typing import Dict, List
+
 from NeuRec.util import typeassert
 from .abstract_evaluator import AbstractEvaluator
 from .backend import UniEvaluator
@@ -38,7 +40,11 @@ class ProxyEvaluator(AbstractEvaluator):
     """
 
     @typeassert(user_train_dict=dict, user_test_dict=dict)
-    def __init__(self, user_train_dict, user_test_dict, user_neg_test=None, metric=None,
+    def __init__(self,
+                 user_train_dict: Dict[int, List[int]],
+                 user_test_dict: Dict[int, List[int]],
+                 user_neg_test: Dict[int, List[int]] = None,
+                 metric=None,
                  group_view=None, top_k=50, batch_size=1024, num_thread=8):
         """Initializes a new `ProxyEvaluator` instance.
 
@@ -73,12 +79,16 @@ class ProxyEvaluator(AbstractEvaluator):
         """
         super(ProxyEvaluator, self).__init__()
         if group_view is not None:
-            self.evaluator = GroupedEvaluator(user_train_dict, user_test_dict, user_neg_test,
-                                              metric=metric, group_view=group_view,
-                                              top_k=top_k, batch_size=batch_size,
+            self.evaluator = GroupedEvaluator(user_train_dict, user_test_dict,
+                                              user_neg_test,
+                                              metric=metric,
+                                              group_view=group_view,
+                                              top_k=top_k,
+                                              batch_size=batch_size,
                                               num_thread=num_thread)
         else:
-            self.evaluator = UniEvaluator(user_train_dict, user_test_dict, user_neg_test,
+            self.evaluator = UniEvaluator(user_train_dict, user_test_dict,
+                                          user_neg_test,
                                           metric=metric, top_k=top_k,
                                           batch_size=batch_size,
                                           num_thread=num_thread)

@@ -1,13 +1,16 @@
 """
 @author: Zhongchuan Sun
 """
-import numpy as np
 from concurrent.futures import ThreadPoolExecutor
-from NeuRec.util import DataIterator
-from NeuRec.util import typeassert, argmax_top_k
+from typing import Dict, List, Set
+
+import numpy as np
+
 from NeuRec.evaluator.abstract_evaluator import AbstractEvaluator
-from .metric import metric_dict
+from NeuRec.util import DataIterator
 from NeuRec.util import pad_sequences
+from NeuRec.util import typeassert, argmax_top_k
+from .metric import metric_dict
 
 
 class UniEvaluator(AbstractEvaluator):
@@ -28,9 +31,13 @@ class UniEvaluator(AbstractEvaluator):
       `MRR` have same numeric values; 4) `Precision` is meaningless.
     """
 
-    @typeassert(user_train_dict=dict, user_test_dict=(dict, None.__class__))
-    def __init__(self, user_train_dict, user_test_dict, user_neg_test=None,
-                 metric=None, top_k=50, batch_size=1024, num_thread=8):
+    @typeassert(user_train_dict=dict, user_test_dict=(dict, type(None)))
+    def __init__(self,
+                 user_train_dict: Dict[int, List[int]],
+                 user_test_dict: Dict[int, List[int]],
+                 user_neg_test: Dict[int, List[int]] = None,
+                 metric=None,
+                 top_k=50, batch_size=1024, num_thread=8):
         """Initializes a new `UniEvaluator` instance.
 
         Args:
@@ -62,14 +69,17 @@ class UniEvaluator(AbstractEvaluator):
         elif isinstance(metric, (set, tuple, list)):
             pass
         else:
-            raise TypeError("The type of 'metric' (%s) is invalid!" % (metric.__class__.__name__))
+            raise TypeError("The type of 'metric' (%s) is invalid!" % (
+                metric.__class__.__name__))
 
         for m in metric:
             if m not in metric_dict:
-                raise ValueError("There is not the metric named '%s'!" % (metric))
+                raise ValueError(
+                    "There is not the metric named '%s'!" % (metric))
 
         self.user_pos_train = user_train_dict
-        self.user_pos_test = {user: set(items) for user, items in user_test_dict.items()}
+        self.user_pos_test = {user: set(items) for user, items in
+                              user_test_dict.items()}
         self.user_neg_test = user_neg_test
         self.metrics_num = len(metric)
         self.metrics = metric
@@ -89,8 +99,9 @@ class UniEvaluator(AbstractEvaluator):
             str: A string consist of all metrics information， such as
                 `"Precision@10    Precision@20    NDCG@10    NDCG@20"`.
         """
-        metrics_show = ['\t'.join([("%s@"%metric + str(k)).ljust(12) for k in self.top_show])
-                        for metric in self.metrics]
+        metrics_show = ['\t'.join(
+            [("%s@" % metric + str(k)).ljust(12) for k in self.top_show])
+            for metric in self.metrics]
         metric = '\t'.join(metrics_show)
         return "metrics:\t%s" % metric
 
@@ -109,20 +120,27 @@ class UniEvaluator(AbstractEvaluator):
         """
         # B: batch size
         # N: the number of items
-        test_users = test_users if test_users is not None else list(self.user_pos_test.keys())
+        test_users = test_users if test_users is not None else list(
+            self.user_pos_test.keys())
         if not isinstance(test_users, (list, tuple, set, np.ndarray)):
-            raise TypeError("'test_user' must be a list, tuple, set or numpy array!")
+            raise TypeError(
+                "'test_user' must be a list, tuple, set or numpy array!")
 
         test_users = DataIterator(test_users, batch_size=self.batch_size,
                                   shuffle=False, drop_last=False)
         batch_result = []
         for batch_users in test_users:
             if self.user_neg_test is not None:
-                candidate_items = [list(self.user_pos_test[u]) + self.user_neg_test[u] for u in batch_users]
-                test_items = [set(range(len(self.user_pos_test[u]))) for u in batch_users]
+                candidate_items = [
+                    list(self.user_pos_test[u]) + self.user_neg_test[u] for u in
+                    batch_users]
+                test_items = [set(range(len(self.user_pos_test[u]))) for u in
+                              batch_users]
 
-                ranking_score = model.predict(batch_users, candidate_items)  # (B,N)
-                ranking_score = pad_sequences(ranking_score, value=-np.inf, dtype=np.float32)
+                ranking_score = model.predict(batch_users,
+                                              candidate_items)  # (B,N)
+                ranking_score = pad_sequences(ranking_score, value=-np.inf,
+                                              dtype=np.float32)
 
                 ranking_score = np.array(ranking_score)
             else:
@@ -133,31 +151,39 @@ class UniEvaluator(AbstractEvaluator):
                 # set the ranking scores of training items to -inf,
                 # then the training items will be sorted at the end of the ranking list.
                 for idx, user in enumerate(batch_users):
-                    if user in self.user_pos_train and len(self.user_pos_train[user]) > 0:
+                    if user in self.user_pos_train and len(
+                            self.user_pos_train[user]) > 0:
                         train_items = self.user_pos_train[user]
                         ranking_score[idx][train_items] = -np.inf
 
-            result = self.eval_score_matrix(ranking_score, test_items, self.metrics,
-                                            top_k=self.max_top, thread_num=self.num_thread)  # (B,k*metric_num)
+            result = self.eval_score_matrix(ranking_score, test_items,
+                                            self.metrics,
+                                            top_k=self.max_top,
+                                            thread_num=self.num_thread)  # (B,k*metric_num)
             batch_result.append(result)
 
         # concatenate the batch results to a matrix
-        all_user_result = np.concatenate(batch_result, axis=0)  # (num_users, metrics_num*max_top)
-        final_result = np.mean(all_user_result, axis=0)  # (1, metrics_num*max_top)
+        all_user_result = np.concatenate(batch_result,
+                                         axis=0)  # (num_users, metrics_num*max_top)
+        final_result = np.mean(all_user_result,
+                               axis=0)  # (1, metrics_num*max_top)
 
-        final_result = np.reshape(final_result, newshape=[self.metrics_num, self.max_top])  # (metrics_num, max_top)
+        final_result = np.reshape(final_result, newshape=[self.metrics_num,
+                                                          self.max_top])  # (metrics_num, max_top)
         final_result = final_result[:, self.top_show - 1]
         final_result = np.reshape(final_result, newshape=[-1])
         buf = '\t'.join([("%.8f" % x).ljust(12) for x in final_result])
         return buf
 
     @typeassert(score_matrix=np.ndarray, test_items=list)
-    def eval_score_matrix(self, score_matrix, test_items, metric, top_k, thread_num):
+    def eval_score_matrix(self, score_matrix, test_items, metric, top_k,
+                          thread_num):
         def _eval_one_user(idx):
-            scores = score_matrix[idx]  # all scores of the test user
-            test_item = test_items[idx]
+            scores: np.ndarray = score_matrix[
+                idx]  # all scores of the test user
+            test_item: Set[int] = test_items[idx]
 
-            ranking = argmax_top_k(scores, top_k)  # Top-K items
+            ranking: List[int] = argmax_top_k(scores, top_k)  # Top-K items
             result = [metric_dict[m](ranking, test_item) for m in metric]
 
             result = np.array(result, dtype=np.float32).flatten()

@@ -3,6 +3,7 @@ import itertools
 import time
 from functools import wraps
 from inspect import signature
+from typing import Dict, List
 
 import numpy as np
 import tensorflow as tf
@@ -54,7 +55,7 @@ def get_data_format(data_format):
     return columns
 
 
-def csr_to_user_dict(train_matrix):
+def csr_to_user_dict(train_matrix) -> Dict[int, List[int]]:
     """convert a scipy.sparse.csr_matrix to a dict,
     where the key is row number, and value is the
     non-empty index in each row.
@@ -67,8 +68,8 @@ def csr_to_user_dict(train_matrix):
     return train_dict
 
 
-def csr_to_user_dict_bytime(time_matrix, train_matrix):
-    train_dict = {}
+def csr_to_user_dict_bytime(time_matrix, train_matrix) -> Dict[int, List[int]]:
+    train_dict: Dict = {}
     time_matrix = time_matrix
     user_pos_items = csr_to_user_dict(train_matrix)
     for u, items in user_pos_items.items():
