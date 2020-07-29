@@ -140,8 +140,9 @@ class UniEvaluator(AbstractEvaluator):
 
                 ranking_score = model.predict(
                     batch_users, candidate_items)  # (B,N)
-                ranking_score: np.ndarray[np.ndarray] = pad_sequences(
-                    ranking_score, value=-np.inf, dtype=np.float32)
+                ranking_score = pad_sequences(
+                    ranking_score, value=-np.inf,
+                    dtype=np.float32)  # np.ndarray[np.ndarray]
 
                 ranking_score = np.array(ranking_score)
             else:
@@ -149,7 +150,8 @@ class UniEvaluator(AbstractEvaluator):
                     self.user_pos_test[u] for u in batch_users]
                 ranking_score = model.predict(
                     batch_users, None)  # (B,N)
-                ranking_score: np.ndarray[np.ndarray] = np.array(ranking_score)
+                ranking_score = np.array(
+                    ranking_score)  # np.ndarray[np.ndarray]
 
                 # set the ranking scores of training items to -inf,
                 # then the training items will be sorted at the end of the ranking list.

@@ -7,6 +7,7 @@ from typing import Dict, List, Type
 
 import numpy as np
 import tensorflow as tf
+from scipy.sparse import csr_matrix
 
 
 def activation_function(act, act_input):
@@ -68,7 +69,8 @@ def csr_to_user_dict(train_matrix) -> Dict[int, List[int]]:
     return train_dict
 
 
-def csr_to_user_dict_bytime(time_matrix, train_matrix) -> Dict[int, List[int]]:
+def csr_to_user_dict_bytime(time_matrix: csr_matrix,
+                            train_matrix: csr_matrix) -> Dict[int, List[int]]:
     train_dict: Dict = {}
     time_matrix = time_matrix
     user_pos_items = csr_to_user_dict(train_matrix)
@@ -160,8 +162,8 @@ def argmax_top_k(a, top_k=50):
 
 def pad_sequences(sequences: List[np.ndarray],
                   value=0., max_len=None,
-                  padding='post', truncating='post', dtype: Type[int] = np.int32
-                  ) -> np.ndarray[np.ndarray]:
+                  padding='post', truncating='post', dtype: Type = np.int32
+                  ):  # np.ndarray[np.ndarray]
     """Pads sequences to the same length.
 
     Args:

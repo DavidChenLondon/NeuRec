@@ -21,8 +21,8 @@ class Dataset(object):
     def __init__(self, conf):
         """Constructor
         """
-        self.train_matrix = None
-        self.test_matrix = None
+        self.train_matrix: csr_matrix = csr_matrix(0)
+        self.test_matrix: csr_matrix = csr_matrix(0)
         self.time_matrix = None
         self.negative_matrix = None
         self.userids = None
