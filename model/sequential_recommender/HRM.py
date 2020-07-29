@@ -3,6 +3,7 @@ Reference: Pengfei Wang et al., "Learning Hierarchical Representation Model for 
 @author: wubin
 """
 from time import time
+from typing import List
 
 import numpy as np
 import tensorflow as tf
@@ -155,10 +156,13 @@ class HRM(SeqAbstractRecommender):
                 self.logger.info("epoch %d:\t%s" % (epoch, self.evaluate()))
 
     @timer
-    def evaluate(self):
+    def evaluate(self) -> str:
         return self.evaluator.evaluate(self)
 
-    def predict(self, user_ids, candidate_items_user_ids):
+    def predict(self,
+                user_ids: List[int],
+                candidate_items_user_ids: List[List[int]]
+                ) -> List[np.ndarray]:
         ratings = []
         if candidate_items_user_ids is None:
             all_items = np.arange(self.num_items)

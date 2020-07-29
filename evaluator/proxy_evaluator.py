@@ -93,7 +93,7 @@ class ProxyEvaluator(AbstractEvaluator):
                                           batch_size=batch_size,
                                           num_thread=num_thread)
 
-    def metrics_info(self):
+    def metrics_info(self) -> str:
         """Get all metrics information.
 
         Returns:
@@ -102,7 +102,7 @@ class ProxyEvaluator(AbstractEvaluator):
         """
         return self.evaluator.metrics_info()
 
-    def evaluate(self, model):
+    def evaluate(self, model) -> str:
         """Evaluate `model`.
 
         Args:

@@ -3,7 +3,7 @@ import itertools
 import time
 from functools import wraps
 from inspect import signature
-from typing import Dict, List
+from typing import Dict, List, Type
 
 import numpy as np
 import tensorflow as tf
@@ -158,8 +158,10 @@ def argmax_top_k(a, top_k=50):
     return np.array([idx for ele, idx in ele_idx], dtype=np.intc)
 
 
-def pad_sequences(sequences, value=0., max_len=None,
-                  padding='post', truncating='post', dtype=np.int32):
+def pad_sequences(sequences: List[np.ndarray],
+                  value=0., max_len=None,
+                  padding='post', truncating='post', dtype: Type[int] = np.int32
+                  ) -> np.ndarray[np.ndarray]:
     """Pads sequences to the same length.
 
     Args:

@@ -92,7 +92,7 @@ class UniEvaluator(AbstractEvaluator):
         else:
             self.top_show = np.sort(top_k)
 
-    def metrics_info(self):
+    def metrics_info(self) -> str:
         """Get all metrics information.
 
         Returns:
@@ -105,7 +105,7 @@ class UniEvaluator(AbstractEvaluator):
         metric = '\t'.join(metrics_show)
         return "metrics:\t%s" % metric
 
-    def evaluate(self, model, test_users=None):
+    def evaluate(self, model, test_users: List[int] = None) -> str:
         """Evaluate `model`.
 
         Args:
@@ -113,6 +113,7 @@ class UniEvaluator(AbstractEvaluator):
                 a method `predict_for_eval(self, users)`, where the argument
                 `users` is a list of users and the return is a 2-D array that
                 contains `users` rating/ranking scores on all items.
+            test_users: list of test users.
 
         Returns:
             str: A single-line string consist of all results, such as
@@ -131,22 +132,24 @@ class UniEvaluator(AbstractEvaluator):
         batch_result = []
         for batch_users in test_users:
             if self.user_neg_test is not None:
-                candidate_items = [
+                candidate_items: List[List[int]] = [
                     list(self.user_pos_test[u]) + self.user_neg_test[u] for u in
                     batch_users]
-                test_items = [set(range(len(self.user_pos_test[u]))) for u in
-                              batch_users]
+                test_items: List[Set[int]] = [
+                    set(range(len(self.user_pos_test[u]))) for u in batch_users]
 
-                ranking_score = model.predict(batch_users,
-                                              candidate_items)  # (B,N)
-                ranking_score = pad_sequences(ranking_score, value=-np.inf,
-                                              dtype=np.float32)
+                ranking_score = model.predict(
+                    batch_users, candidate_items)  # (B,N)
+                ranking_score: np.ndarray[np.ndarray] = pad_sequences(
+                    ranking_score, value=-np.inf, dtype=np.float32)
 
                 ranking_score = np.array(ranking_score)
             else:
-                test_items = [self.user_pos_test[u] for u in batch_users]
-                ranking_score = model.predict(batch_users, None)  # (B,N)
-                ranking_score = np.array(ranking_score)
+                test_items: List[Set[int]] = [
+                    self.user_pos_test[u] for u in batch_users]
+                ranking_score = model.predict(
+                    batch_users, None)  # (B,N)
+                ranking_score: np.ndarray[np.ndarray] = np.array(ranking_score)
 
                 # set the ranking scores of training items to -inf,
                 # then the training items will be sorted at the end of the ranking list.
