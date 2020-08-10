@@ -11,4 +11,21 @@ from .tool import inner_product
 from .tool import l2_loss
 from .tool import log_loss
 from .logger import Logger
-from .cython.random_choice import batch_randint_choice
+from NeuRec.util.cython.random_choice import batch_randint_choice
+
+__all__ = [
+    "Configurator",
+    "DataIterator",
+    "randint_choice",
+    "csr_to_user_dict",
+    "typeassert",
+    "argmax_top_k",
+    "timer",
+    "pad_sequences",
+    "inner_product",
+    "l2_loss",
+    "logger",
+    "log_loss",
+    "batch_randint_choice",
+]
+
