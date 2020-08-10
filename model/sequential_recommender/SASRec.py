@@ -6,13 +6,14 @@ Reference: https://github.com/kang205/SASRec
 """
 
 import numpy as np
-from model.AbstractRecommender import SeqAbstractRecommender
-from util import DataIterator
-from util.tool import csr_to_user_dict_bytime
 import tensorflow as tf
-from util import inner_product
-from util import batch_randint_choice
-from util import pad_sequences
+
+from NeuRec.model.AbstractRecommender import SeqAbstractRecommender
+from NeuRec.util import DataIterator
+from NeuRec.util import batch_randint_choice
+from NeuRec.util import inner_product
+from NeuRec.util import pad_sequences
+from NeuRec.util.tool import csr_to_user_dict_bytime
 
 
 def normalize(inputs,
@@ -115,7 +116,8 @@ def embedding(inputs,
                                        dtype=tf.float32,
                                        shape=[vocab_size, num_units],
                                        # initializer=tf.contrib.layers.xavier_initializer(),
-                                       regularizer=tf.contrib.layers.l2_regularizer(l2_reg))
+                                       regularizer=tf.contrib.layers.l2_regularizer(
+                                           l2_reg))
         if zero_pad:
             lookup_table = tf.concat((tf.zeros(shape=[1, num_units]),
                                       lookup_table[1:, :]), 0)
@@ -170,9 +172,12 @@ def multihead_attention(queries,
         V = tf.layers.dense(keys, num_units, activation=None)  # (N, T_k, C)
 
         # Split and concat
-        Q_ = tf.concat(tf.split(Q, num_heads, axis=2), axis=0)  # (h*N, T_q, C/h)
-        K_ = tf.concat(tf.split(K, num_heads, axis=2), axis=0)  # (h*N, T_k, C/h)
-        V_ = tf.concat(tf.split(V, num_heads, axis=2), axis=0)  # (h*N, T_k, C/h)
+        Q_ = tf.concat(tf.split(Q, num_heads, axis=2),
+                       axis=0)  # (h*N, T_q, C/h)
+        K_ = tf.concat(tf.split(K, num_heads, axis=2),
+                       axis=0)  # (h*N, T_k, C/h)
+        V_ = tf.concat(tf.split(V, num_heads, axis=2),
+                       axis=0)  # (h*N, T_k, C/h)
 
         # Multiplication
         outputs = tf.matmul(Q_, tf.transpose(K_, [0, 2, 1]))  # (h*N, T_q, T_k)
@@ -183,37 +188,46 @@ def multihead_attention(queries,
         # Key Masking
         key_masks = tf.sign(tf.abs(tf.reduce_sum(keys, axis=-1)))  # (N, T_k)
         key_masks = tf.tile(key_masks, [num_heads, 1])  # (h*N, T_k)
-        key_masks = tf.tile(tf.expand_dims(key_masks, 1), [1, tf.shape(queries)[1], 1])  # (h*N, T_q, T_k)
+        key_masks = tf.tile(tf.expand_dims(key_masks, 1),
+                            [1, tf.shape(queries)[1], 1])  # (h*N, T_q, T_k)
 
         paddings = tf.ones_like(outputs) * (-2 ** 32 + 1)
-        outputs = tf.where(tf.equal(key_masks, 0), paddings, outputs)  # (h*N, T_q, T_k)
+        outputs = tf.where(tf.equal(key_masks, 0), paddings,
+                           outputs)  # (h*N, T_q, T_k)
 
         # Causality = Future blinding
         if causality:
             diag_vals = tf.ones_like(outputs[0, :, :])  # (T_q, T_k)
-            tril = tf.linalg.LinearOperatorLowerTriangular(diag_vals).to_dense()  # (T_q, T_k)
-            masks = tf.tile(tf.expand_dims(tril, 0), [tf.shape(outputs)[0], 1, 1])  # (h*N, T_q, T_k)
+            tril = tf.linalg.LinearOperatorLowerTriangular(
+                diag_vals).to_dense()  # (T_q, T_k)
+            masks = tf.tile(tf.expand_dims(tril, 0),
+                            [tf.shape(outputs)[0], 1, 1])  # (h*N, T_q, T_k)
 
             paddings = tf.ones_like(masks) * (-2 ** 32 + 1)
-            outputs = tf.where(tf.equal(masks, 0), paddings, outputs)  # (h*N, T_q, T_k)
+            outputs = tf.where(tf.equal(masks, 0), paddings,
+                               outputs)  # (h*N, T_q, T_k)
 
         # Activation
         outputs = tf.nn.softmax(outputs)  # (h*N, T_q, T_k)
 
         # Query Masking
-        query_masks = tf.sign(tf.abs(tf.reduce_sum(queries, axis=-1)))  # (N, T_q)
+        query_masks = tf.sign(
+            tf.abs(tf.reduce_sum(queries, axis=-1)))  # (N, T_q)
         query_masks = tf.tile(query_masks, [num_heads, 1])  # (h*N, T_q)
-        query_masks = tf.tile(tf.expand_dims(query_masks, -1), [1, 1, tf.shape(keys)[1]])  # (h*N, T_q, T_k)
+        query_masks = tf.tile(tf.expand_dims(query_masks, -1),
+                              [1, 1, tf.shape(keys)[1]])  # (h*N, T_q, T_k)
         outputs *= query_masks  # broadcasting. (N, T_q, C)
 
         # Dropouts
-        outputs = tf.layers.dropout(outputs, rate=dropout_rate, training=tf.convert_to_tensor(is_training))
+        outputs = tf.layers.dropout(outputs, rate=dropout_rate,
+                                    training=tf.convert_to_tensor(is_training))
 
         # Weighted sum
         outputs = tf.matmul(outputs, V_)  # ( h*N, T_q, C/h)
 
         # Restore shape
-        outputs = tf.concat(tf.split(outputs, num_heads, axis=0), axis=2)  # (N, T_q, C)
+        outputs = tf.concat(tf.split(outputs, num_heads, axis=0),
+                            axis=2)  # (N, T_q, C)
 
         # Residual connection
         outputs += queries
@@ -250,12 +264,14 @@ def feedforward(inputs,
         params = {"inputs": inputs, "filters": num_units[0], "kernel_size": 1,
                   "activation": tf.nn.relu, "use_bias": True}
         outputs = tf.layers.conv1d(**params)
-        outputs = tf.layers.dropout(outputs, rate=dropout_rate, training=tf.convert_to_tensor(is_training))
+        outputs = tf.layers.dropout(outputs, rate=dropout_rate,
+                                    training=tf.convert_to_tensor(is_training))
         # Readout layer
         params = {"inputs": outputs, "filters": num_units[1], "kernel_size": 1,
                   "activation": None, "use_bias": True}
         outputs = tf.layers.conv1d(**params)
-        outputs = tf.layers.dropout(outputs, rate=dropout_rate, training=tf.convert_to_tensor(is_training))
+        outputs = tf.layers.dropout(outputs, rate=dropout_rate,
+                                    training=tf.convert_to_tensor(is_training))
 
         # Residual connection
         outputs += inputs
@@ -290,22 +306,28 @@ class SASRec(SeqAbstractRecommender):
 
     def _create_variable(self):
         # self.user_ph = tf.placeholder(tf.int32, [None], name="user")
-        self.item_seq_ph = tf.placeholder(tf.int32, [None, self.max_len], name="item_seq")
-        self.item_pos_ph = tf.placeholder(tf.int32, [None, self.max_len], name="item_pos")
-        self.item_neg_ph = tf.placeholder(tf.int32, [None, self.max_len], name="item_neg")
+        self.item_seq_ph = tf.placeholder(tf.int32, [None, self.max_len],
+                                          name="item_seq")
+        self.item_pos_ph = tf.placeholder(tf.int32, [None, self.max_len],
+                                          name="item_pos")
+        self.item_neg_ph = tf.placeholder(tf.int32, [None, self.max_len],
+                                          name="item_neg")
         self.is_training = tf.placeholder(tf.bool, name="training_flag")
 
         l2_regularizer = tf.contrib.layers.l2_regularizer(self.l2_emb)
         item_embeddings = tf.get_variable('item_embeddings', dtype=tf.float32,
-                                          shape=[self.items_num, self.hidden_units],
+                                          shape=[self.items_num,
+                                                 self.hidden_units],
                                           regularizer=l2_regularizer)
 
         zero_pad = tf.zeros([1, self.hidden_units], name="padding")
         item_embeddings = tf.concat([item_embeddings, zero_pad], axis=0)
         self.item_embeddings = item_embeddings * (self.hidden_units ** 0.5)
 
-        self.position_embeddings = tf.get_variable('position_embeddings', dtype=tf.float32,
-                                                   shape=[self.max_len, self.hidden_units],
+        self.position_embeddings = tf.get_variable('position_embeddings',
+                                                   dtype=tf.float32,
+                                                   shape=[self.max_len,
+                                                          self.hidden_units],
                                                    regularizer=l2_regularizer)
 
     def build_graph(self):
@@ -313,12 +335,14 @@ class SASRec(SeqAbstractRecommender):
         reuse = None
         with tf.variable_scope("SASRec", reuse=reuse):
             # sequence embedding, item embedding table
-            self.seq = tf.nn.embedding_lookup(self.item_embeddings, self.item_seq_ph)
+            self.seq = tf.nn.embedding_lookup(self.item_embeddings,
+                                              self.item_seq_ph)
             item_emb_table = self.item_embeddings
 
             # Positional Encoding
-            position = tf.tile(tf.expand_dims(tf.range(tf.shape(self.item_seq_ph)[1]), 0),
-                               [tf.shape(self.item_seq_ph)[0], 1])
+            position = tf.tile(
+                tf.expand_dims(tf.range(tf.shape(self.item_seq_ph)[1]), 0),
+                [tf.shape(self.item_seq_ph)[0], 1])
             t = tf.nn.embedding_lookup(self.position_embeddings, position)
             # pos_emb_table = self.position_embeddings
 
@@ -327,9 +351,11 @@ class SASRec(SeqAbstractRecommender):
             # Dropout
             self.seq = tf.layers.dropout(self.seq,
                                          rate=self.dropout_rate,
-                                         training=tf.convert_to_tensor(self.is_training))
+                                         training=tf.convert_to_tensor(
+                                             self.is_training))
 
-            mask = tf.expand_dims(tf.to_float(tf.not_equal(self.item_seq_ph, self.items_num)), -1)
+            mask = tf.expand_dims(
+                tf.to_float(tf.not_equal(self.item_seq_ph, self.items_num)), -1)
             self.seq *= mask
 
             # Build blocks
@@ -348,19 +374,25 @@ class SASRec(SeqAbstractRecommender):
 
                     # Feed forward
                     self.seq = feedforward(normalize(self.seq),
-                                           num_units=[self.hidden_units, self.hidden_units],
+                                           num_units=[self.hidden_units,
+                                                      self.hidden_units],
                                            dropout_rate=self.dropout_rate,
                                            is_training=self.is_training)
                     self.seq *= mask
 
             self.seq = normalize(self.seq)  # (b, l, d)
-            last_emb = self.seq[:, -1, :]  # (b, d), the embedding of last item of each session
+            last_emb = self.seq[:, -1,
+                       :]  # (b, d), the embedding of last item of each session
 
-        pos = tf.reshape(self.item_pos_ph, [tf.shape(self.item_seq_ph)[0] * self.max_len])  # (b*l,)
-        neg = tf.reshape(self.item_neg_ph, [tf.shape(self.item_seq_ph)[0] * self.max_len])  # (b*l,)
+        pos = tf.reshape(self.item_pos_ph, [
+            tf.shape(self.item_seq_ph)[0] * self.max_len])  # (b*l,)
+        neg = tf.reshape(self.item_neg_ph, [
+            tf.shape(self.item_seq_ph)[0] * self.max_len])  # (b*l,)
         pos_emb = tf.nn.embedding_lookup(item_emb_table, pos)  # (b*l, d)
         neg_emb = tf.nn.embedding_lookup(item_emb_table, neg)  # (b*l, d)
-        seq_emb = tf.reshape(self.seq, [tf.shape(self.item_seq_ph)[0] * self.max_len, self.hidden_units])  # (b*l, d)
+        seq_emb = tf.reshape(self.seq,
+                             [tf.shape(self.item_seq_ph)[0] * self.max_len,
+                              self.hidden_units])  # (b*l, d)
 
         # prediction layer
         self.pos_logits = inner_product(pos_emb, seq_emb)  # (b*l,)
@@ -372,19 +404,23 @@ class SASRec(SeqAbstractRecommender):
 
         pos_loss = -tf.log(tf.sigmoid(self.pos_logits) + 1e-24) * is_target
         neg_loss = -tf.log(1 - tf.sigmoid(self.neg_logits) + 1e-24) * is_target
-        self.loss = tf.reduce_sum(pos_loss + neg_loss) / tf.reduce_sum(is_target)
+        self.loss = tf.reduce_sum(pos_loss + neg_loss) / tf.reduce_sum(
+            is_target)
 
         try:
-            reg_losses = tf.add_n(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
+            reg_losses = tf.add_n(
+                tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
             self.loss = self.loss + reg_losses
         except:
             pass
 
-        self.train_opt = tf.train.AdamOptimizer(learning_rate=self.lr, beta2=0.98).minimize(self.loss)
+        self.train_opt = tf.train.AdamOptimizer(learning_rate=self.lr,
+                                                beta2=0.98).minimize(self.loss)
 
         # for predication/test
         items_embeddings = item_emb_table[:-1]  # remove the padding item
-        self.all_logits = tf.matmul(last_emb, items_embeddings, transpose_b=True)
+        self.all_logits = tf.matmul(last_emb, items_embeddings,
+                                    transpose_b=True)
 
     def train_model(self):
         self.logger.info(self.evaluator.metrics_info())
@@ -406,18 +442,26 @@ class SASRec(SeqAbstractRecommender):
 
     def get_train_data(self):
         item_seq_list, item_pos_list, item_neg_list = [], [], []
-        all_users = DataIterator(list(self.user_pos_train.keys()), batch_size=1024, shuffle=False)
+        all_users = DataIterator(list(self.user_pos_train.keys()),
+                                 batch_size=1024, shuffle=False)
         for bat_users in all_users:
             bat_seq = [self.user_pos_train[u][:-1] for u in bat_users]
             bat_pos = [self.user_pos_train[u][1:] for u in bat_users]
             n_neg_items = [len(pos) for pos in bat_pos]
             exclusion = [self.user_pos_train[u] for u in bat_users]
-            bat_neg = batch_randint_choice(self.items_num, n_neg_items, replace=True, exclusion=exclusion)
+            bat_neg = batch_randint_choice(self.items_num, n_neg_items,
+                                           replace=True, exclusion=exclusion)
 
             # padding
-            bat_seq = pad_sequences(bat_seq, value=self.items_num, max_len=self.max_len, padding='pre', truncating='pre')
-            bat_pos = pad_sequences(bat_pos, value=self.items_num, max_len=self.max_len, padding='pre', truncating='pre')
-            bat_neg = pad_sequences(bat_neg, value=self.items_num, max_len=self.max_len, padding='pre', truncating='pre')
+            bat_seq = pad_sequences(bat_seq, value=self.items_num,
+                                    max_len=self.max_len, padding='pre',
+                                    truncating='pre')
+            bat_pos = pad_sequences(bat_pos, value=self.items_num,
+                                    max_len=self.max_len, padding='pre',
+                                    truncating='pre')
+            bat_neg = pad_sequences(bat_neg, value=self.items_num,
+                                    max_len=self.max_len, padding='pre',
+                                    truncating='pre')
 
             item_seq_list.extend(bat_seq)
             item_pos_list.extend(bat_pos)
@@ -428,16 +472,20 @@ class SASRec(SeqAbstractRecommender):
         return self.evaluator.evaluate(self)
 
     def predict(self, users, items=None):
-        users = DataIterator(users, batch_size=512, shuffle=False, drop_last=False)
+        users = DataIterator(users, batch_size=512, shuffle=False,
+                             drop_last=False)
         all_ratings = []
         for bat_user in users:
             bat_seq = [self.user_pos_train[u] for u in bat_user]
-            bat_seq = pad_sequences(bat_seq, value=self.items_num, max_len=self.max_len, padding='pre', truncating='pre')
+            bat_seq = pad_sequences(bat_seq, value=self.items_num,
+                                    max_len=self.max_len, padding='pre',
+                                    truncating='pre')
             feed = {self.item_seq_ph: bat_seq,
                     self.is_training: False}
             bat_ratings = self.sess.run(self.all_logits, feed_dict=feed)
             all_ratings.extend(bat_ratings)
         all_ratings = np.array(all_ratings, dtype=np.float32)
         if items is not None:
-            all_ratings = [all_ratings[idx][item] for idx, item in enumerate(items)]
+            all_ratings = [all_ratings[idx][item] for idx, item in
+                           enumerate(items)]
         return all_ratings
