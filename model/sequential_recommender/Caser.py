@@ -16,10 +16,9 @@ from NeuRec.util.tool import csr_to_user_dict_bytime
 
 
 class Caser(SeqAbstractRecommender):
-    def __init__(self, sess, dataset, conf):
-        super(Caser, self).__init__(dataset, conf)
-        self.dataset = dataset
-        self.users_num, self.items_num = dataset.train_matrix.shape
+    def __init__(self, conf):
+        super(Caser, self).__init__(conf)
+        self.users_num, self.items_num = self.dataset.train_matrix.shape
 
         self.lr = conf["lr"]
         self.l2_reg = conf["l2_reg"]
@@ -32,8 +31,6 @@ class Caser(SeqAbstractRecommender):
         self.nh = conf["nh"]
         self.dropout = conf["dropout"]
         self.neg_samples = conf["neg_samples"]
-
-        self.sess = sess
 
     def _create_variable(self):
         self.user_ph = tf.placeholder(tf.int32, [None], name="user")

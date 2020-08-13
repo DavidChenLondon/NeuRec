@@ -13,7 +13,6 @@ from NeuRec.util import DataIterator
 from NeuRec.util import batch_randint_choice
 from NeuRec.util import inner_product
 from NeuRec.util import pad_sequences
-from NeuRec.util.tool import csr_to_user_dict_bytime
 
 
 def normalize(inputs,
@@ -283,12 +282,8 @@ def feedforward(inputs,
 
 
 class SASRec(SeqAbstractRecommender):
-    def __init__(self, sess, dataset, conf):
-        super(SASRec, self).__init__(dataset, conf)
-        train_matrix, time_matrix = dataset.train_matrix, dataset.time_matrix
-        self.dataset = dataset
-
-        self.users_num, self.items_num = train_matrix.shape
+    def __init__(self, conf):
+        super(SASRec, self).__init__(conf)
 
         self.lr = conf["lr"]
         self.l2_emb = conf["l2_emb"]
@@ -299,10 +294,6 @@ class SASRec(SeqAbstractRecommender):
         self.max_len = conf["max_len"]
         self.num_blocks = conf["num_blocks"]
         self.num_heads = conf["num_heads"]
-
-        self.user_pos_train = csr_to_user_dict_bytime(time_matrix, train_matrix)
-
-        self.sess = sess
 
     def _create_variable(self):
         # self.user_ph = tf.placeholder(tf.int32, [None], name="user")
@@ -316,7 +307,7 @@ class SASRec(SeqAbstractRecommender):
 
         l2_regularizer = tf.contrib.layers.l2_regularizer(self.l2_emb)
         item_embeddings = tf.get_variable('item_embeddings', dtype=tf.float32,
-                                          shape=[self.items_num,
+                                          shape=[self.num_items,
                                                  self.hidden_units],
                                           regularizer=l2_regularizer)
 
@@ -355,7 +346,7 @@ class SASRec(SeqAbstractRecommender):
                                              self.is_training))
 
             mask = tf.expand_dims(
-                tf.to_float(tf.not_equal(self.item_seq_ph, self.items_num)), -1)
+                tf.to_float(tf.not_equal(self.item_seq_ph, self.num_items)), -1)
             self.seq *= mask
 
             # Build blocks
@@ -398,8 +389,8 @@ class SASRec(SeqAbstractRecommender):
         self.pos_logits = inner_product(pos_emb, seq_emb)  # (b*l,)
         self.neg_logits = inner_product(neg_emb, seq_emb)  # (b*l,)
 
-        # ignore padding items (self.items_num)
-        is_target = tf.reshape(tf.to_float(tf.not_equal(pos, self.items_num)),
+        # ignore padding items (self.num_items)
+        is_target = tf.reshape(tf.to_float(tf.not_equal(pos, self.num_items)),
                                [tf.shape(self.item_seq_ph)[0] * self.max_len])
 
         pos_loss = -tf.log(tf.sigmoid(self.pos_logits) + 1e-24) * is_target
@@ -449,17 +440,17 @@ class SASRec(SeqAbstractRecommender):
             bat_pos = [self.user_pos_train[u][1:] for u in bat_users]
             n_neg_items = [len(pos) for pos in bat_pos]
             exclusion = [self.user_pos_train[u] for u in bat_users]
-            bat_neg = batch_randint_choice(self.items_num, n_neg_items,
+            bat_neg = batch_randint_choice(self.num_items, n_neg_items,
                                            replace=True, exclusion=exclusion)
 
             # padding
-            bat_seq = pad_sequences(bat_seq, value=self.items_num,
+            bat_seq = pad_sequences(bat_seq, value=self.num_items,
                                     max_len=self.max_len, padding='pre',
                                     truncating='pre')
-            bat_pos = pad_sequences(bat_pos, value=self.items_num,
+            bat_pos = pad_sequences(bat_pos, value=self.num_items,
                                     max_len=self.max_len, padding='pre',
                                     truncating='pre')
-            bat_neg = pad_sequences(bat_neg, value=self.items_num,
+            bat_neg = pad_sequences(bat_neg, value=self.num_items,
                                     max_len=self.max_len, padding='pre',
                                     truncating='pre')
 
@@ -477,7 +468,7 @@ class SASRec(SeqAbstractRecommender):
         all_ratings = []
         for bat_user in users:
             bat_seq = [self.user_pos_train[u] for u in bat_user]
-            bat_seq = pad_sequences(bat_seq, value=self.items_num,
+            bat_seq = pad_sequences(bat_seq, value=self.num_items,
                                     max_len=self.max_len, padding='pre',
                                     truncating='pre')
             feed = {self.item_seq_ph: bat_seq,

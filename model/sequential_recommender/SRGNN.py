@@ -6,6 +6,7 @@ Reference: https://github.com/CRIPAC-DIG/SR-GNN
 """
 
 import math
+from typing import List
 
 import numpy as np
 import tensorflow as tf
@@ -14,10 +15,12 @@ from NeuRec.model.AbstractRecommender import SeqAbstractRecommender
 from NeuRec.util import DataIterator
 from NeuRec.util import pad_sequences
 
+cache = {}
+
 
 class SRGNN(SeqAbstractRecommender):
-    def __init__(self, sess, dataset, config):
-        super(SRGNN, self).__init__(dataset, config)
+    def __init__(self, config):
+        super(SRGNN, self).__init__(config)
         self.lr = config["lr"]
         self.L2 = config["L2"]
         self.hidden_size = config["hidden_size"]
@@ -29,17 +32,23 @@ class SRGNN(SeqAbstractRecommender):
         self.nonhybrid = config["nonhybrid"]
         self.max_seq_len = config["max_seq_len"]
 
-        self.num_users, self.num_item = dataset.num_users, dataset.num_items
-        self.user_pos_train = dataset.get_user_train_dict(by_time=True)
+    @property
+    def train_seq(self) -> List:
+        if "train_seq" not in cache:
+            train_seq = []
+            train_tar = []
+            for user, seqs in self.user_pos_train.items():
+                for i in range(1, len(seqs)):
+                    train_seq.append(seqs[-i - self.max_seq_len:-i])
+                    train_tar.append(seqs[-i])
+            cache["train_seq"] = train_seq
+            cache["train_tar"] = train_tar
+        return cache["train_seq"]
 
-        self.train_seq = []
-        self.train_tar = []
-        for user, seqs in self.user_pos_train.items():
-            for i in range(1, len(seqs)):
-                self.train_seq.append(seqs[-i - self.max_seq_len:-i])
-                self.train_tar.append(seqs[-i])
-
-        self.sess = sess
+    @property
+    def train_tar(self) -> List:
+        type(self.train_seq)  # call cache first
+        return cache["train_tar"]
 
     def _create_variable(self):
         self.mask_ph = tf.placeholder(dtype=tf.float32,
@@ -71,7 +80,7 @@ class SRGNN(SeqAbstractRecommender):
                                       dtype=tf.float32,
                                       initializer=tf.zeros_initializer())
 
-        embedding = tf.get_variable(shape=[self.num_item, self.hidden_size],
+        embedding = tf.get_variable(shape=[self.num_items, self.hidden_size],
                                     name='embedding',
                                     dtype=tf.float32, initializer=w_init)
         zero_pad = tf.zeros([1, self.hidden_size], name="padding")
@@ -228,7 +237,7 @@ class SRGNN(SeqAbstractRecommender):
     def _build_session_graph(self, bat_items):
         A_in, A_out, alias_inputs = [], [], []
         all_mask = [[1] * len(items) for items in bat_items]
-        bat_items = pad_sequences(bat_items, value=self.num_item)
+        bat_items = pad_sequences(bat_items, value=self.num_items)
 
         unique_nodes = [np.unique(items).tolist() for items in bat_items]
         max_n_node = np.max([len(nodes) for nodes in unique_nodes])
@@ -252,7 +261,7 @@ class SRGNN(SeqAbstractRecommender):
             A_out.append(u_A_out)
             alias_inputs.append([id_map[i] for i in u_seq])
 
-        items = pad_sequences(unique_nodes, value=self.num_item)
+        items = pad_sequences(unique_nodes, value=self.num_items)
         all_mask = pad_sequences(all_mask, value=0)
         return A_in, A_out, alias_inputs, items, all_mask
 

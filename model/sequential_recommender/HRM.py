@@ -3,24 +3,22 @@ Reference: Pengfei Wang et al., "Learning Hierarchical Representation Model for 
 @author: wubin
 """
 from time import time
-from typing import List, Dict
+from typing import List
 
 import numpy as np
 import tensorflow as tf
 
 from NeuRec.data import TimeOrderPointwiseSampler
-from NeuRec.data.dataset import Dataset
 from NeuRec.model.AbstractRecommender import SeqAbstractRecommender
 from NeuRec.util import Configurator
 from NeuRec.util import l2_loss
 from NeuRec.util import learner, tool
 from NeuRec.util import timer
-from NeuRec.util.tool import csr_to_user_dict_bytime
 
 
 class HRM(SeqAbstractRecommender):
-    def __init__(self, sess: tf.Session, dataset: Dataset, conf: Configurator):
-        super(HRM, self).__init__(dataset, conf)
+    def __init__(self, conf: Configurator):
+        super(HRM, self).__init__(conf)
         self.learning_rate = conf["learning_rate"]
         self.embedding_size = conf["embedding_size"]
         self.learner = conf["learner"]
@@ -35,12 +33,6 @@ class HRM(SeqAbstractRecommender):
         self.num_negatives = conf["num_neg"]
         self.init_method = conf["init_method"]
         self.stddev = conf["stddev"]
-        self.num_users = dataset.num_users
-        self.num_items = dataset.num_items
-        self.dataset = dataset
-        self.train_dict: Dict[int, List[int]] = csr_to_user_dict_bytime(
-            dataset.time_matrix, dataset.train_matrix)
-        self.sess = sess
 
     def _create_placeholders(self):
         with tf.name_scope("input_data"):

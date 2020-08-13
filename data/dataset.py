@@ -5,6 +5,7 @@ Processing datasets.
 """
 
 import os
+from typing import Dict
 
 import numpy as np
 import pandas as pd
@@ -18,6 +19,8 @@ from ..util.tool import csr_to_user_dict_bytime, csr_to_user_dict
 
 
 class Dataset(object):
+    cache: Dict[str, 'Dataset'] = {}  # class-level cache
+
     def __init__(self, conf):
         """Constructor
         """
@@ -27,8 +30,8 @@ class Dataset(object):
         self.negative_matrix = None
         self.userids = None
         self.itemids = None
-        self.num_users = None
-        self.num_items = None
+        self.num_users: int = None
+        self.num_items: int = None
         self.dataset_name = conf["data.input.dataset"]
 
         # self._split_data(conf)

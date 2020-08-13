@@ -12,12 +12,12 @@ from NeuRec.model.AbstractRecommender import SeqAbstractRecommender
 from NeuRec.util import l2_loss
 from NeuRec.util import learner, tool, data_generator
 from NeuRec.util.data_iterator import DataIterator
-from NeuRec.util.tool import csr_to_user_dict_bytime, timer, pad_sequences
+from NeuRec.util.tool import timer, pad_sequences
 
 
 class Fossil(SeqAbstractRecommender):
-    def __init__(self, sess, dataset, conf):
-        super(Fossil, self).__init__(dataset, conf)
+    def __init__(self, conf):
+        super(Fossil, self).__init__(conf)
         self.verbose = conf["verbose"]
         self.batch_size = conf["batch_size"]
         self.num_epochs = conf["epochs"]
@@ -37,13 +37,6 @@ class Fossil(SeqAbstractRecommender):
         self.init_method = conf["init_method"]
         self.stddev = conf["stddev"]
         self.num_negatives = conf["num_neg"]
-        self.num_users = dataset.num_users
-        self.num_items = dataset.num_items
-        self.dataset = dataset
-        self.train_matrix = self.dataset.train_matrix
-        self.train_dict = csr_to_user_dict_bytime(self.dataset.time_matrix,
-                                                  self.train_matrix)
-        self.sess = sess
 
     def _create_placeholders(self):
         with tf.name_scope("input_data"):

@@ -12,14 +12,12 @@ import tensorflow as tf
 from NeuRec.model.AbstractRecommender import SeqAbstractRecommender
 from NeuRec.util import l2_loss
 
+_cache = {}
+
 
 class GRU4RecPlus(SeqAbstractRecommender):
-    def __init__(self, sess, dataset, conf):
-        super(GRU4RecPlus, self).__init__(dataset, conf)
-        self.train_matrix = dataset.train_matrix
-        self.dataset = dataset
-
-        self.users_num, self.items_num = self.train_matrix.shape
+    def __init__(self, conf):
+        super(GRU4RecPlus, self).__init__(conf)
 
         self.lr = conf["lr"]
         self.reg = conf["reg"]
@@ -56,15 +54,31 @@ class GRU4RecPlus(SeqAbstractRecommender):
         else:
             raise ValueError("There is not loss named '%s'." % conf["loss"])
 
-        self.data_uit, self.offset_idx = self._init_data()
+    @property
+    def _cache(self) -> dict:
+        if "data_uit" not in _cache:
+            data_uit, offset_idx = self._init_data()
+            _cache["data_uit"] = data_uit
+            _cache["offset_idx"] = offset_idx
 
-        # for sampling negative items
-        _, pop = np.unique(self.data_uit[:, 1], return_counts=True)
-        pop = np.power(pop, self.sample_alpha)
-        pop_cumsum = np.cumsum(pop)
-        self.pop_cumsum = pop_cumsum / pop_cumsum[-1]
+            # for sampling negative items
+            _, pop = np.unique(self.data_uit[:, 1], return_counts=True)
+            pop = np.power(pop, self.sample_alpha)
+            pop_cumsum = np.cumsum(pop)
+            _cache["pop_cumsum"] = pop_cumsum / pop_cumsum[-1]
+        return _cache
 
-        self.sess = sess
+    @property
+    def pop_cumsum(self):
+        return self._cache["pop_cumsum"]
+
+    @property
+    def offset_idx(self):
+        return self._cache["offset_idx"]
+
+    @property
+    def data_uit(self):
+        return self._cache["data_uit"]
 
     def _init_data(self):
         time_dok = self.dataset.time_matrix.todok()
@@ -86,16 +100,16 @@ class GRU4RecPlus(SeqAbstractRecommender):
                                         name='layer_%d_state' % idx)
                          for idx, n_unit in enumerate(self.layers)]
 
-        init = tf.random.truncated_normal([self.items_num, self.layers[0]],
+        init = tf.random.truncated_normal([self.num_items, self.layers[0]],
                                           mean=0.0, stddev=0.01)
         self.input_embeddings = tf.Variable(init, dtype=tf.float32,
                                             name="input_embeddings")
 
-        init = tf.random.truncated_normal([self.items_num, self.layers[-1]],
+        init = tf.random.truncated_normal([self.num_items, self.layers[-1]],
                                           mean=0.0, stddev=0.01)
         self.item_embeddings = tf.Variable(init, dtype=tf.float32,
                                            name="item_embeddings")
-        self.item_biases = tf.Variable(tf.zeros([self.items_num]),
+        self.item_biases = tf.Variable(tf.zeros([self.num_items]),
                                        dtype=tf.float32, name="item_biases")
 
     def _softmax_neg(self, logits):
@@ -220,11 +234,11 @@ class GRU4RecPlus(SeqAbstractRecommender):
             self.logger.info("epoch %d:\t%s" % (epoch, result))
 
     def _get_user_embeddings(self):
-        users = np.arange(self.users_num, dtype=np.int32)
+        users = np.arange(self.num_users, dtype=np.int32)
         u_nnz = np.array([self.train_matrix[u].nnz for u in users],
                          dtype=np.int32)
         users = users[np.argsort(-u_nnz)]
-        user_embeddings = np.zeros([self.users_num, self.layers[-1]],
+        user_embeddings = np.zeros([self.num_users, self.layers[-1]],
                                    dtype=np.float32)  # saving user embedding
 
         data_uit, offset_idx = self.data_uit, self.offset_idx
@@ -256,7 +270,7 @@ class GRU4RecPlus(SeqAbstractRecommender):
             for idx in mask:
                 u = users[batch_iter[idx]]
                 user_embeddings[u] = u_emb[idx]  # saving user embedding
-                if next_iter < self.users_num:
+                if next_iter < self.num_users:
                     batch_iter[idx] = next_iter
                     start[idx] = offset_idx[users[next_iter]]
                     end[idx] = offset_idx[users[next_iter] + 1]

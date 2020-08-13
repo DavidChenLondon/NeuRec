@@ -14,7 +14,6 @@ from NeuRec.util import l2_loss
 from NeuRec.util import learner, tool
 from NeuRec.util import timer
 from NeuRec.util.data_iterator import DataIterator
-from NeuRec.util.tool import csr_to_user_dict_bytime
 
 
 def l2_distance(a, b, name="euclidean_distance"):
@@ -22,8 +21,8 @@ def l2_distance(a, b, name="euclidean_distance"):
 
 
 class TransRec(SeqAbstractRecommender):
-    def __init__(self, sess, dataset, conf):
-        super(TransRec, self).__init__(dataset, conf)
+    def __init__(self, conf):
+        super(TransRec, self).__init__(conf)
         self.learning_rate = conf["learning_rate"]
         self.embedding_size = conf["embedding_size"]
         self.learner = conf["learner"]
@@ -36,13 +35,6 @@ class TransRec(SeqAbstractRecommender):
         self.num_negatives = conf["num_neg"]
         self.init_method = conf["init_method"]
         self.stddev = conf["stddev"]
-        self.num_users = dataset.num_users
-        self.num_items = dataset.num_items
-        self.dataset = dataset
-        self.train_matrix = dataset.train_matrix
-        self.train_dict = csr_to_user_dict_bytime(dataset.time_matrix,
-                                                  dataset.train_matrix)
-        self.sess = sess
 
     def _create_placeholders(self):
         with tf.name_scope("input_data"):
