@@ -1,17 +1,21 @@
+from NeuRec.util.cython.random_choice import batch_randint_choice
+
 from .configurator import Configurator
 from .data_iterator import DataIterator
-from .tool import randint_choice
-from .tool import csr_to_user_dict
-from .tool import typeassert
+from .logger import Logger
 from .tool import argmax_top_k
-from .tool import timer
-from .tool import pad_sequences
+from .tool import csr_to_user_dict
 from .tool import inner_product
 # from util.tool import batch_random_choice
 from .tool import l2_loss
 from .tool import log_loss
-from .logger import Logger
-from NeuRec.util.cython.random_choice import batch_randint_choice
+from .tool import pad_sequences
+from .tool import randint_choice
+from .tool import timer
+from .tool import typeassert
+
+# note: prevent from auto clean due to cpython reference problem.
+type(batch_randint_choice)
 
 __all__ = [
     "Configurator",
@@ -27,5 +31,5 @@ __all__ = [
     "logger",
     "log_loss",
     "batch_randint_choice",
+    "Logger",
 ]
-

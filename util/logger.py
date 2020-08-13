@@ -5,6 +5,10 @@ import logging
 import os
 import sys
 
+__all__ = [
+    "Logger",
+]
+
 
 class Logger(object):
     """`Logger` is a simple encapsulation of python logger.
