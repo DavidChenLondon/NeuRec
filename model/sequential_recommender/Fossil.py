@@ -3,16 +3,15 @@ Reference: Ruining He et al., "Fusing similarity models with Markov chains for s
 @author: wubin
 """
 
-from time import time
-
 import numpy as np
 import tensorflow as tf
 
-from NeuRec.model.AbstractRecommender import SeqAbstractRecommender
+from NeuRec.model.AbstractRecommender import SeqAbstractRecommender, \
+    LossRecorder
 from NeuRec.util import l2_loss
 from NeuRec.util import learner, tool, data_generator
 from NeuRec.util.data_iterator import DataIterator
-from NeuRec.util.tool import timer, pad_sequences
+from NeuRec.util.tool import pad_sequences
 
 
 class Fossil(SeqAbstractRecommender):
@@ -166,10 +165,7 @@ class Fossil(SeqAbstractRecommender):
                                          batch_size=self.batch_size,
                                          shuffle=True)
 
-            num_training_instances = len(user_input)
-            total_loss = 0.0
-            training_start_time = time()
-
+            lr = LossRecorder()
             if self.is_pairwise is True:
                 for bat_user_input_id, bat_users_pos, bat_users_neg, bat_idx_pos, bat_idx_neg, \
                     bat_items_pos, bat_items_neg, bat_item_input_recent in data_iter:
@@ -188,7 +184,7 @@ class Fossil(SeqAbstractRecommender):
 
                     loss, _ = self.sess.run((self.loss, self.optimizer),
                                             feed_dict=feed_dict)
-                    total_loss += loss
+                    lr.add_loss(loss)
             else:
                 for bat_user_input_id, bat_users, bat_idx, bat_items, bat_item_input_recent, bat_labels in data_iter:
                     bat_users = pad_sequences(bat_users, value=self.num_items)
@@ -201,18 +197,9 @@ class Fossil(SeqAbstractRecommender):
 
                     loss, _ = self.sess.run((self.loss, self.optimizer),
                                             feed_dict=feed_dict)
-                    total_loss += loss
+                    lr.add_loss(loss)
 
-            self.logger.info("[iter %d : loss : %f, time: %f]" %
-                             (epoch, total_loss / num_training_instances,
-                              time() - training_start_time))
-
-            if epoch % self.verbose == 0:
-                self.logger.info("epoch %d:\t%s" % (epoch, self.evaluate()))
-
-    @timer
-    def evaluate(self):
-        return self.evaluator.evaluate(self)
+            self.log_loss_and_evaluate(epoch, lr)
 
     def predict(self, user_ids, candidate_items_userids):
         ratings = []

@@ -8,11 +8,11 @@ Reference: https://github.com/graytowne/caser_pytorch
 import numpy as np
 import tensorflow as tf
 
-from NeuRec.model.AbstractRecommender import SeqAbstractRecommender
+from NeuRec.model.AbstractRecommender import SeqAbstractRecommender, \
+    LossRecorder
 from NeuRec.util import DataIterator
 from NeuRec.util import batch_randint_choice
 from NeuRec.util import pad_sequences
-from NeuRec.util.tool import csr_to_user_dict_bytime
 
 
 class Caser(SeqAbstractRecommender):
@@ -146,10 +146,9 @@ class Caser(SeqAbstractRecommender):
 
     def train_model(self):
         self.logger.info(self.evaluator.metrics_info())
-        self.user_pos_train = csr_to_user_dict_bytime(self.dataset.time_matrix,
-                                                      self.dataset.train_matrix)
         users_list, item_seq_list, item_pos_list = self._generate_sequences()
         for epoch in range(self.epochs):
+            lr = LossRecorder()
             item_neg_list = self._sample_negative(users_list)
             data = DataIterator(users_list, item_seq_list, item_pos_list,
                                 item_neg_list,
@@ -161,10 +160,11 @@ class Caser(SeqAbstractRecommender):
                         self.item_neg_ph: bat_item_neg,
                         self.is_training: True}
 
-                self.sess.run(self.train_opt, feed_dict=feed)
+                loss, _ = self.sess.run(self.train_opt, feed_dict=feed)
+                lr.add_loss(loss)
 
-            result = self.evaluate_model()
-            self.logger.info("epoch %d:\t%s" % (epoch, result))
+            self.log_loss_and_evaluate(epoch, lr)
+        self.save_tf_model()
 
     def _generate_sequences(self):
         self.user_test_seq = {}

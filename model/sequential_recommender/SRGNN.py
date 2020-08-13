@@ -11,7 +11,8 @@ from typing import List
 import numpy as np
 import tensorflow as tf
 
-from NeuRec.model.AbstractRecommender import SeqAbstractRecommender
+from NeuRec.model.AbstractRecommender import SeqAbstractRecommender, \
+    LossRecorder
 from NeuRec.util import DataIterator
 from NeuRec.util import pad_sequences
 
@@ -203,6 +204,7 @@ class SRGNN(SeqAbstractRecommender):
 
         self.logger.info(self.evaluator.metrics_info())
         for epoch in range(self.epochs):
+            lr = LossRecorder()
             for bat_index in self._shuffle_index(train_seq_index):
                 item_seqs = [self.train_seq[idx] for idx in bat_index]
                 bat_tars = [self.train_tar[idx] for idx in bat_index]
@@ -217,7 +219,7 @@ class SRGNN(SeqAbstractRecommender):
 
                 self.sess.run(self.train_opt, feed_dict=feed)
 
-            self.logger.info("epoch %d:\t%s" % (epoch, self.evaluate_model()))
+            self.log_loss_and_evaluate(epoch, lr)
 
     def _shuffle_index(self, seq_index):
         index_chunks = DataIterator(seq_index, batch_size=self.batch_size * 32,

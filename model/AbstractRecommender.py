@@ -1,6 +1,7 @@
 import os
 import time
 from abc import ABC
+from pathlib import Path
 from typing import Dict, List, Union
 
 import numpy as np
@@ -11,6 +12,7 @@ import tensorflow as tf
 from NeuRec.data.dataset import Dataset
 from NeuRec.evaluator import ProxyEvaluator
 from NeuRec.util import Logger, Configurator
+from NeuRec.util.tool import timer
 
 # note: keep below caches in memory only
 cache__loggers: Dict[str, Logger] = {}
@@ -30,6 +32,8 @@ class EvaluationReport(object):
     def record(self,
                epoch: int, loss: float, seconds: float,
                metric_values: Union[str, Dict[str, float]] = None):
+        # TODO: currently we use existing str API, but we should refactor
+        #  Evaluator to support metadata instead of printed string.
         self.data["epoch"].append(epoch)
         self.data["loss"].append(loss)
         self.data["seconds"].append(seconds)
@@ -46,24 +50,44 @@ class EvaluationReport(object):
         return pd.DataFrame(self.data)
 
 
-# TODO save models use session
+class LossRecorder(object):
+
+    def __init__(self):
+        self.loss_list: List[float] = []
+        self.training_start_time = time.time()
+
+    def add_loss(self, loss: float):
+        self.loss_list.append(loss)
+
+    @property
+    def avg_loss(self) -> float:
+        if not self.loss_list:
+            return 0
+        return sum(self.loss_list) / len(self.loss_list)
+
+    @property
+    def seconds(self) -> float:
+        return time.time() - self.training_start_time
 
 
 class AbstractRecommender(object):
     def __init__(self, conf: Configurator):
         self.conf: Configurator = conf
         self.report: EvaluationReport = EvaluationReport(conf["metric"])
+        self.verbose = conf.alg_arg.get("verbose", 5)
 
         # generate cache key
-        param_str = "%s_%s" % (self.dataset_name, self.conf.params_str())
+        self.param_str = "%s_%s" % (self.dataset_name, self.conf.params_str())
         model_name = self.conf["recommender"]
         timestamp = time.time()
-        run_id = "%s_%.8f" % (param_str[:150], timestamp)
-        self.cache_key = f"{param_str}_{model_name}"
+        self.run_id = "%s_%.8f" % (self.param_str[:150], timestamp)
+        self.cache_key = f"{self.param_str}_{model_name}"
 
         # generate logger name
-        log_dir = os.path.join("log", self.dataset_name, model_name)
-        self.logger_name: str = os.path.join(log_dir, run_id + ".log")
+        self.cache_dir = os.path.join("log", self.dataset_name, model_name)
+        Path(self.cache_dir).mkdir(parents=True, exist_ok=True)
+        self.logger_name: str = os.path.join(
+            self.cache_dir, self.run_id + ".log")
 
         self.logger.info(self.dataset)
         self.logger.info(conf)
@@ -109,14 +133,47 @@ class AbstractRecommender(object):
         raise NotImplementedError
 
     @property
-    def sess(self) -> tf.Session:
-        assert self.cache_key in cache__sessions
+    def tf_cache_path(self) -> str:
+        return os.path.join(self.cache_dir, f"tf_{self.cache_key}")
+
+    @property
+    def sess(self):
+        if self.cache_key not in cache__sessions:
+            # TODO looks multiple-CPUs option not works
+            config = tf.ConfigProto(
+                device_count={"CPU": 4},
+                inter_op_parallelism_threads=2,
+                intra_op_parallelism_threads=2,
+                log_device_placement=True,
+                allow_soft_placement=True,
+            )
+            session = tf.Session(config=config)
+
+            if os.path.exists(self.tf_cache_path):
+                saver = tf.train.Saver()
+                saver.restore(session, self.tf_cache_path)
+                self.logger.info(f"Restored session from tf_cache_path:"
+                                 f" {self.tf_cache_path}")
+            cache__sessions[self.cache_key] = session
         return cache__sessions[self.cache_key]
 
-    def plug_tf_session(self, sess: tf.Session):
-        """ We don't want to serialize connection data like session,
-        put them in memory instead. """
-        cache__sessions[self.cache_key] = sess
+    def save_tf_model(self):
+        saver = tf.train.Saver()
+        # TODO add checkpoints
+        saver.save(self.sess, self.tf_cache_path, save_debug_info=True)
+
+    def log_loss_and_evaluate(self, epoch: int, lr: LossRecorder):
+        self.logger.info("[iter %d : loss : %f, time: %f]" %
+                         (epoch, lr.avg_loss, lr.seconds))
+
+        if epoch % self.verbose == 0:
+            evaluate_result = self.evaluate()
+            self.logger.info("epoch %d:\t%s" % (epoch, evaluate_result))
+            self.report.record(epoch, lr.avg_loss, lr.seconds, evaluate_result)
+
+    @timer
+    def evaluate(self):
+        return self.evaluator.evaluate(self)
 
 
 class SeqAbstractRecommender(AbstractRecommender, ABC):

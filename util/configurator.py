@@ -4,8 +4,8 @@
 
 import os
 import sys
-from configparser import ConfigParser
 from collections import OrderedDict
+from configparser import ConfigParser
 
 
 class Configurator(object):
@@ -56,14 +56,15 @@ class Configurator(object):
                 named `default_section` in ini-style file.
         """
         if not os.path.isfile(config_file):
-            raise FileNotFoundError("There is not config file named '%s'!" % config_file)
+            raise FileNotFoundError(
+                "There is not config file named '%s'!" % config_file)
 
         self._default_section = default_section
         self.cmd_arg = self._read_cmd_arg()
         self.lib_arg = self._read_config_file(config_file)
         config_dir = self.lib_arg["config_dir"]
         model_name = self.lib_arg["recommender"]
-        arg_file = os.path.join(config_dir, model_name+'.properties')
+        arg_file = os.path.join(config_dir, model_name + '.properties')
         self.alg_arg = self._read_config_file(arg_file)
 
     def _read_cmd_arg(self):
@@ -71,7 +72,8 @@ class Configurator(object):
         if "ipykernel_launcher" not in sys.argv[0]:
             for arg in sys.argv[1:]:
                 if not arg.startswith("--"):
-                    raise SyntaxError("Commend arg must start with '--', but '%s' is not!" % arg)
+                    raise SyntaxError(
+                        "Commend arg must start with '--', but '%s' is not!" % arg)
                 arg_name, arg_value = arg[2:].split("=")
                 cmd_arg[arg_name] = arg_value
 
@@ -91,7 +93,8 @@ class Configurator(object):
             config_sec = self._default_section
         else:
             raise ValueError("'%s' has more than one sections but there is no "
-                             "section named '%s'" % filename, self._default_section)
+                             "section named '%s'" % filename,
+                             self._default_section)
 
         config_arg = OrderedDict(config[config_sec].items())
         for arg in self.cmd_arg:
@@ -106,10 +109,16 @@ class Configurator(object):
         Returns:
             str: A string summary of parameters.
         """
-        params_id = '_'.join(["{}={}".format(arg, value) for arg, value in self.alg_arg.items() if len(value) < 20])
         special_char = {'/', '\\', '\"', ':', '*', '?', '<', '>', '|', '\t'}
-        params_id = [c if c not in special_char else '_' for c in params_id]
-        params_id = ''.join(params_id)
+
+        def clean(_params_id: str) -> str:
+            return "".join([c if c not in special_char else '_'
+                            for c in _params_id])
+
+        params = {k: clean(str(v)) for k, v in self.alg_arg.items()}
+        params_id = "__".join([f"{k}={v}" for k, v in params.items()])
+        if len(params_id) >= 150:  # if file name is too long for filesystem
+            params_id = "__".join([f"{k[:3]}={v}" for k, v in params.items()])
         params_id = "%s_%s" % (self["recommender"], params_id)
         return params_id
 
@@ -129,7 +138,8 @@ class Configurator(object):
         # convert param from str to value, i.e. int, float or list etc.
         try:
             value = eval(param)
-            if not isinstance(value, (str, int, float, list, tuple, bool, None.__class__)):
+            if not isinstance(value, (
+                    str, int, float, list, tuple, bool, None.__class__)):
                 value = param
         except:
             if param.lower() == "true":
@@ -148,9 +158,12 @@ class Configurator(object):
         return o in self.lib_arg or o in self.alg_arg or o in self.cmd_arg
 
     def __str__(self):
-        lib_info = '\n'.join(["{}={}".format(arg, value) for arg, value in self.lib_arg.items()])
-        alg_info = '\n'.join(["{}={}".format(arg, value) for arg, value in self.alg_arg.items()])
-        info = "\n\nNeuRec hyperparameters:\n%s\n\n%s's hyperparameters:\n%s\n" % (lib_info, self["recommender"], alg_info)
+        lib_info = '\n'.join(
+            ["{}={}".format(arg, value) for arg, value in self.lib_arg.items()])
+        alg_info = '\n'.join(
+            ["{}={}".format(arg, value) for arg, value in self.alg_arg.items()])
+        info = "\n\nNeuRec hyperparameters:\n%s\n\n%s's hyperparameters:\n%s\n" % (
+            lib_info, self["recommender"], alg_info)
         return info
 
     def __repr__(self):

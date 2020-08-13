@@ -9,7 +9,8 @@ Reference: https://github.com/hidasib/GRU4Rec
 import numpy as np
 import tensorflow as tf
 
-from NeuRec.model.AbstractRecommender import SeqAbstractRecommender
+from NeuRec.model.AbstractRecommender import SeqAbstractRecommender, \
+    LossRecorder
 from NeuRec.util import l2_loss
 
 _cache = {}
@@ -190,6 +191,7 @@ class GRU4RecPlus(SeqAbstractRecommender):
         data_items = data_uit[:, 1]
 
         for epoch in range(self.epochs):
+            lr = LossRecorder()
             state = [np.zeros([self.batch_size, n_unit], dtype=np.float32) for
                      n_unit in self.layers]
             user_idx = np.random.permutation(len(offset_idx) - 1)
@@ -230,12 +232,11 @@ class GRU4RecPlus(SeqAbstractRecommender):
                     for i in range(len(self.layers)):
                         state[i][mask] = 0
 
-            result = self.evaluate_model()
-            self.logger.info("epoch %d:\t%s" % (epoch, result))
+            self.log_loss_and_evaluate(epoch, lr)
 
     def _get_user_embeddings(self):
         users = np.arange(self.num_users, dtype=np.int32)
-        u_nnz = np.array([self.train_matrix[u].nnz for u in users],
+        u_nnz = np.array([self.dataset.train_matrix[u].nnz for u in users],
                          dtype=np.int32)
         users = users[np.argsort(-u_nnz)]
         user_embeddings = np.zeros([self.num_users, self.layers[-1]],

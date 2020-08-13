@@ -2,13 +2,13 @@
 Reference: ThaiBinh Nguyen, et al. "NPE: Neural Personalized Embedding for Collaborative Filtering" in ijcai2018
 @author: wubin
 """
-from time import time
 
 import numpy as np
 import tensorflow as tf
 
 from NeuRec.data import TimeOrderPointwiseSampler
-from NeuRec.model.AbstractRecommender import SeqAbstractRecommender
+from NeuRec.model.AbstractRecommender import SeqAbstractRecommender, \
+    LossRecorder
 from NeuRec.util import l2_loss
 from NeuRec.util import learner, tool
 from NeuRec.util import timer
@@ -102,9 +102,7 @@ class NPE(SeqAbstractRecommender):
                                               batch_size=self.batch_size,
                                               shuffle=True)
         for epoch in range(1, self.num_epochs + 1):
-            num_training_instances = len(data_iter)
-            total_loss = 0.0
-            training_start_time = time()
+            lr = LossRecorder()
 
             for bat_users, bat_items_recent, bat_items, bat_labels in data_iter:
                 feed_dict = {self.user_input: bat_users,
@@ -114,14 +112,8 @@ class NPE(SeqAbstractRecommender):
 
                 loss, _ = self.sess.run((self.loss, self.optimizer),
                                         feed_dict=feed_dict)
-                total_loss += loss
-
-            self.logger.info("[iter %d : loss : %f, time: %f]" % (
-                epoch, total_loss / num_training_instances,
-                time() - training_start_time))
-
-            if epoch % self.verbose == 0:
-                self.logger.info("epoch %d:\t%s" % (epoch, self.evaluate()))
+                lr.add_loss(loss)
+            self.log_loss_and_evaluate(epoch, lr)
 
     @timer
     def evaluate(self):

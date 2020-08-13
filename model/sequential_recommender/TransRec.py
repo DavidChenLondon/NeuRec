@@ -3,16 +3,14 @@ Reference: Ruining He et al., "Translation-based Recommendation." in RecSys 2017
 @author: wubin
 """
 
-from time import time
-
 import numpy as np
 import tensorflow as tf
 
 from NeuRec.data import TimeOrderPointwiseSampler, TimeOrderPairwiseSampler
-from NeuRec.model.AbstractRecommender import SeqAbstractRecommender
+from NeuRec.model.AbstractRecommender import SeqAbstractRecommender, \
+    LossRecorder
 from NeuRec.util import l2_loss
 from NeuRec.util import learner, tool
-from NeuRec.util import timer
 from NeuRec.util.data_iterator import DataIterator
 
 
@@ -139,9 +137,7 @@ class TransRec(SeqAbstractRecommender):
                                                   batch_size=self.batch_size,
                                                   shuffle=True)
         for epoch in range(self.num_epochs):
-            num_training_instances = len(data_iter)
-            total_loss = 0.0
-            training_start_time = time()
+            lr = LossRecorder()
 
             if self.is_pairwise is True:
                 for bat_users, bat_items_recent, bat_items_pos, bat_items_neg in data_iter:
@@ -152,7 +148,7 @@ class TransRec(SeqAbstractRecommender):
 
                     loss, _ = self.sess.run((self.loss, self.optimizer),
                                             feed_dict=feed_dict)
-                    total_loss += loss
+                    lr.add_loss(loss)
             else:
                 for bat_users, bat_items_recent, bat_items, bat_labels in data_iter:
                     feed_dict = {self.user_input: bat_users,
@@ -162,17 +158,9 @@ class TransRec(SeqAbstractRecommender):
 
                     loss, _ = self.sess.run((self.loss, self.optimizer),
                                             feed_dict=feed_dict)
-                    total_loss += loss
+                    lr.add_loss(loss)
 
-            # logger.info("[iter %d : loss : %f, time: %f]" % (epoch, total_loss / num_training_instances,
-            #                                                  time() - training_start_time))
-
-            if epoch % self.verbose == 0:
-                self.logger.info("epoch %d:\t%s" % (epoch, self.evaluate()))
-
-    @timer
-    def evaluate(self):
-        return self.evaluator.evaluate(self)
+            self.log_loss_and_evaluate(epoch, lr)
 
     def predict(self, user_ids, items=None):
         users = DataIterator(user_ids, batch_size=64, shuffle=False,

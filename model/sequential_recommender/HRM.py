@@ -2,14 +2,14 @@
 Reference: Pengfei Wang et al., "Learning Hierarchical Representation Model for NextBasket Recommendation." in SIGIR 2015.
 @author: wubin
 """
-from time import time
 from typing import List
 
 import numpy as np
 import tensorflow as tf
 
 from NeuRec.data import TimeOrderPointwiseSampler
-from NeuRec.model.AbstractRecommender import SeqAbstractRecommender
+from NeuRec.model.AbstractRecommender import SeqAbstractRecommender, \
+    LossRecorder
 from NeuRec.util import Configurator
 from NeuRec.util import l2_loss
 from NeuRec.util import learner, tool
@@ -128,9 +128,7 @@ class HRM(SeqAbstractRecommender):
                                               shuffle=True)
 
         for epoch in range(1, self.num_epochs + 1):
-            num_training_instances = len(data_iter)
-            total_loss = 0.0
-            training_start_time = time()
+            lr = LossRecorder()
 
             for bat_users, bat_items_recent, bat_items, bat_labels in data_iter:
                 feed_dict = {self.user_input: bat_users,
@@ -140,20 +138,17 @@ class HRM(SeqAbstractRecommender):
 
                 loss, _ = self.sess.run((self.loss, self.optimizer),
                                         feed_dict=feed_dict)
-                total_loss += loss
+                lr.add_loss(loss)
 
-            seconds = time() - training_start_time
             self.logger.info("[iter %d : loss : %f, time: %f]" %
-                             (epoch, total_loss / num_training_instances,
-                              seconds))
+                             (epoch, lr.avg_loss, lr.seconds))
 
             evaluate_result = None
             if epoch % self.verbose == 0:
                 evaluate_result = self.evaluate()
                 self.logger.info("epoch %d:\t%s" % (epoch, evaluate_result))
-            self.report.record(
-                epoch, total_loss / num_training_instances, seconds,
-                evaluate_result)
+            self.report.record(epoch, lr.avg_loss, lr.seconds, evaluate_result)
+        self.save_tf_model()
 
     @timer
     def evaluate(self) -> str:

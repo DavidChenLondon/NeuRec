@@ -8,7 +8,8 @@ Reference: https://github.com/kang205/SASRec
 import numpy as np
 import tensorflow as tf
 
-from NeuRec.model.AbstractRecommender import SeqAbstractRecommender
+from NeuRec.model.AbstractRecommender import SeqAbstractRecommender, \
+    LossRecorder
 from NeuRec.util import DataIterator
 from NeuRec.util import batch_randint_choice
 from NeuRec.util import inner_product
@@ -417,6 +418,7 @@ class SASRec(SeqAbstractRecommender):
         self.logger.info(self.evaluator.metrics_info())
 
         for epoch in range(self.epochs):
+            lr = LossRecorder()
             item_seq_list, item_pos_list, item_neg_list = self.get_train_data()
             data = DataIterator(item_seq_list, item_pos_list, item_neg_list,
                                 batch_size=self.batch_size, shuffle=True)
@@ -428,8 +430,7 @@ class SASRec(SeqAbstractRecommender):
 
                 self.sess.run(self.train_opt, feed_dict=feed)
 
-            result = self.evaluate_model()
-            self.logger.info("epoch %d:\t%s" % (epoch, result))
+            self.log_loss_and_evaluate(epoch, lr)
 
     def get_train_data(self):
         item_seq_list, item_pos_list, item_neg_list = [], [], []
