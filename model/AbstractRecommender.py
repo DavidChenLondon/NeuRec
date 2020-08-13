@@ -1,7 +1,7 @@
 import os
 import time
 from abc import ABC
-from typing import Dict, List
+from typing import Dict, List, Union
 
 import numpy as np
 import pandas as pd
@@ -11,7 +11,6 @@ import tensorflow as tf
 from NeuRec.data.dataset import Dataset
 from NeuRec.evaluator import ProxyEvaluator
 from NeuRec.util import Logger, Configurator
-from NeuRec.util.tool import csr_to_user_dict_bytime
 
 # note: keep below caches in memory only
 cache__loggers: Dict[str, Logger] = {}
@@ -19,9 +18,41 @@ cache__evaluators: Dict[str, ProxyEvaluator] = {}
 cache__sessions: Dict[str, tf.Session] = {}
 
 
+class EvaluationReport(object):
+    FIELDS_EPOCH = ["epoch", "loss", "seconds"]
+
+    def __init__(self, metrics: List[str]):
+        assert isinstance(metrics, list), metrics
+        self.metrics: List[str] = metrics
+        self.data: Dict[str, list] = {f: [] for f in
+                                      (self.FIELDS_EPOCH + self.metrics)}
+
+    def record(self,
+               epoch: int, loss: float, seconds: float,
+               metric_values: Union[str, Dict[str, float]] = None):
+        self.data["epoch"].append(epoch)
+        self.data["loss"].append(loss)
+        self.data["seconds"].append(seconds)
+
+        if metric_values is not None:
+            if isinstance(metric_values, str):
+                metric_values = dict(zip(
+                    self.metrics, map(float, metric_values.split("\t"))))
+            for k, v in metric_values.items():
+                self.data[k].append(v)
+
+    @property
+    def to_dataframe(self) -> pd.DataFrame:
+        return pd.DataFrame(self.data)
+
+
+# TODO save models use session
+
+
 class AbstractRecommender(object):
     def __init__(self, conf: Configurator):
         self.conf: Configurator = conf
+        self.report: EvaluationReport = EvaluationReport(conf["metric"])
 
         # generate cache key
         param_str = "%s_%s" % (self.dataset_name, self.conf.params_str())
@@ -90,14 +121,13 @@ class AbstractRecommender(object):
 
 class SeqAbstractRecommender(AbstractRecommender, ABC):
     def __init__(self, conf):
+        super(SeqAbstractRecommender, self).__init__(conf)
         if self.dataset.time_matrix is None:
             raise ValueError("Dataset does not contant time infomation!")
-        super(SeqAbstractRecommender, self).__init__(conf)
 
     @property
     def train_dict(self) -> Dict[int, List[int]]:
-        return csr_to_user_dict_bytime(self.dataset.time_matrix,
-                                       self.dataset.train_matrix)
+        return self.dataset.train_dict
 
     @property
     def user_pos_train(self):

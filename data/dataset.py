@@ -1,14 +1,15 @@
 """
 Created on Aug 8, 2016
-Processing datasets. 
+Processing datasets.
 @author: Xiangnan He (xiangnanhe@gmail.com)
 """
 
 import os
-from typing import Dict
+from typing import Dict, List
 
 import numpy as np
 import pandas as pd
+from cached_property import cached_property
 from scipy.sparse import csr_matrix
 
 from .utils import check_md5
@@ -322,3 +323,7 @@ class Dataset(object):
 
     def to_csr_matrix(self):
         return self.train_matrix.copy()
+
+    @cached_property
+    def train_dict(self) -> Dict[int, List[int]]:
+        return csr_to_user_dict_bytime(self.time_matrix, self.train_matrix)

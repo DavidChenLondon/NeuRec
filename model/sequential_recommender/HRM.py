@@ -142,12 +142,18 @@ class HRM(SeqAbstractRecommender):
                                         feed_dict=feed_dict)
                 total_loss += loss
 
+            seconds = time() - training_start_time
             self.logger.info("[iter %d : loss : %f, time: %f]" %
                              (epoch, total_loss / num_training_instances,
-                              time() - training_start_time))
+                              seconds))
 
+            evaluate_result = None
             if epoch % self.verbose == 0:
-                self.logger.info("epoch %d:\t%s" % (epoch, self.evaluate()))
+                evaluate_result = self.evaluate()
+                self.logger.info("epoch %d:\t%s" % (epoch, evaluate_result))
+            self.report.record(
+                epoch, total_loss / num_training_instances, seconds,
+                evaluate_result)
 
     @timer
     def evaluate(self) -> str:
