@@ -140,14 +140,7 @@ class HRM(SeqAbstractRecommender):
                                         feed_dict=feed_dict)
                 lr.add_loss(loss)
 
-            self.logger.info("[iter %d : loss : %f, time: %f]" %
-                             (epoch, lr.avg_loss, lr.seconds))
-
-            evaluate_result = None
-            if epoch % self.verbose == 0:
-                evaluate_result = self.evaluate()
-                self.logger.info("epoch %d:\t%s" % (epoch, evaluate_result))
-            self.report.record(epoch, lr.avg_loss, lr.seconds, evaluate_result)
+            self.log_loss_and_evaluate(epoch, lr)
         self.save_tf_model()
 
     @timer

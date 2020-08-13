@@ -13,6 +13,7 @@ from NeuRec.data.dataset import Dataset
 from NeuRec.evaluator import ProxyEvaluator
 from NeuRec.util import Logger, Configurator
 from NeuRec.util.tool import timer
+from smk_recsys.utils.const import project_dir  # TODO fix it
 
 # note: keep below caches in memory only
 cache__loggers: Dict[str, Logger] = {}
@@ -84,7 +85,8 @@ class AbstractRecommender(object):
         self.cache_key = f"{self.param_str}_{model_name}"
 
         # generate logger name
-        self.cache_dir = os.path.join("log", self.dataset_name, model_name)
+        self.cache_dir = os.path.join(f"{project_dir}/log",
+                                      self.dataset_name, model_name)
         Path(self.cache_dir).mkdir(parents=True, exist_ok=True)
         self.logger_name: str = os.path.join(
             self.cache_dir, self.run_id + ".log")
@@ -144,14 +146,17 @@ class AbstractRecommender(object):
                 device_count={"CPU": 4},
                 inter_op_parallelism_threads=2,
                 intra_op_parallelism_threads=2,
-                log_device_placement=True,
+                # log_device_placement=True,
                 allow_soft_placement=True,
             )
             session = tf.Session(config=config)
 
-            if os.path.exists(self.tf_cache_path):
-                saver = tf.train.Saver()
+            meta_path = f"{self.tf_cache_path}.meta"
+            if os.path.exists(meta_path):
+                saver = tf.train.import_meta_graph(meta_path)
                 saver.restore(session, self.tf_cache_path)
+                print(f"Restored session from tf_cache_path:"
+                      f" {self.tf_cache_path}")
                 self.logger.info(f"Restored session from tf_cache_path:"
                                  f" {self.tf_cache_path}")
             cache__sessions[self.cache_key] = session
@@ -161,15 +166,18 @@ class AbstractRecommender(object):
         saver = tf.train.Saver()
         # TODO add checkpoints
         saver.save(self.sess, self.tf_cache_path, save_debug_info=True)
+        self.logger.info(f"Saved session to tf_cache_path:"
+                         f" {self.tf_cache_path}")
 
     def log_loss_and_evaluate(self, epoch: int, lr: LossRecorder):
         self.logger.info("[iter %d : loss : %f, time: %f]" %
                          (epoch, lr.avg_loss, lr.seconds))
 
-        if epoch % self.verbose == 0:
+        evaluate_result = None
+        if epoch % int(self.verbose) == 0:
             evaluate_result = self.evaluate()
             self.logger.info("epoch %d:\t%s" % (epoch, evaluate_result))
-            self.report.record(epoch, lr.avg_loss, lr.seconds, evaluate_result)
+        self.report.record(epoch, lr.avg_loss, lr.seconds, evaluate_result)
 
     @timer
     def evaluate(self):

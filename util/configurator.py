@@ -109,7 +109,8 @@ class Configurator(object):
         Returns:
             str: A string summary of parameters.
         """
-        special_char = {'/', '\\', '\"', ':', '*', '?', '<', '>', '|', '\t'}
+        special_char = {'/', '\\', '\"', ':', '*', '?', '<', '>', '|', '\t',
+                        "'"}
 
         def clean(_params_id: str) -> str:
             return "".join([c if c not in special_char else '_'
