@@ -85,11 +85,13 @@ class AbstractRecommender(object):
         self.cache_key = f"{self.param_str}_{model_name}"
 
         # generate logger name
-        self.cache_dir = os.path.join(f"{project_dir}/log",
+        self.cache_dir = os.path.join(f"{project_dir}/cache/NeuRec/",
                                       self.dataset_name, model_name)
+        self.log_dir = os.path.join(f"{project_dir}/log/NeuRec/",
+                                    self.dataset_name, model_name)
         Path(self.cache_dir).mkdir(parents=True, exist_ok=True)
-        self.logger_name: str = os.path.join(
-            self.cache_dir, self.run_id + ".log")
+        Path(self.log_dir).mkdir(parents=True, exist_ok=True)
+        self.logger_name: str = os.path.join(self.log_dir, self.run_id + ".log")
 
         self.logger.info(self.dataset)
         self.logger.info(conf)
