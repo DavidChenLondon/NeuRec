@@ -173,8 +173,8 @@ class AbstractRecommender(object):
                          f" {self.tf_cache_path}")
 
     def log_loss_and_evaluate(self, epoch: int, lr: LossRecorder):
-        self.logger.info("[iter %d : loss : %f, time: %f]" %
-                         (epoch, lr.avg_loss, lr.seconds))
+        self.logger.info(
+            f"[iter {epoch}: loss : {lr.avg_loss}, time: {lr.seconds}]")
 
         evaluate_result = None
         if epoch % int(self.verbose) == 0:
