@@ -175,6 +175,7 @@ class NeuMF(AbstractRecommender):
                                             feed_dict=feed_dict)
                     lr.add_loss(loss)
             self.log_loss_and_evaluate(epoch, lr)
+        self.save_tf_model()
 
     def predict(self, user_ids, candidate_items_user_ids):
         ratings = []

@@ -62,9 +62,10 @@ class LossRecorder(object):
 
     @property
     def avg_loss(self) -> float:
-        if not self.loss_list:
-            return 0
-        return sum(self.loss_list) / len(self.loss_list)
+        avg_loss = None
+        if self.loss_list:
+            avg_loss = sum(self.loss_list) / len(self.loss_list)
+        return avg_loss
 
     @property
     def seconds(self) -> float:
