@@ -1,10 +1,13 @@
 """
 @author: Zhongchuan Sun
 """
-from NeuRec.util import DataIterator
-from NeuRec.util.cython.random_choice import batch_randint_choice
 from collections import Iterable
+from typing import List
+
 import numpy as np
+from NeuRec.util.cython.random_choice import batch_randint_choice
+
+from NeuRec.util import DataIterator
 
 
 class Sampler(object):
@@ -60,7 +63,8 @@ def _generative_time_order_positive_items(user_pos_dict, high_order=1):
         if high_order == 1:
             r_items = [seq_items[idx] for idx in range(num_instance)]
         else:
-            r_items = [seq_items[idx:][:high_order] for idx in range(num_instance)]
+            r_items = [seq_items[idx:][:high_order] for idx in
+                       range(num_instance)]
 
         recent_items_list.extend(r_items)
         pos_items_list.extend(seq_items[high_order:])
@@ -68,17 +72,20 @@ def _generative_time_order_positive_items(user_pos_dict, high_order=1):
     return user_pos_len, users_list, recent_items_list, pos_items_list
 
 
-def _sampling_negative_items(user_pos_len, neg_num, item_num, user_pos_dict):
+def _sampling_negative_items(user_pos_len, neg_num, item_num, user_pos_dict
+                             ) -> List[List]:
     if neg_num <= 0:
         raise ValueError("'neg_num' must be a positive integer.")
 
     users, n_pos = list(zip(*user_pos_len))
-    users_n_pos = DataIterator(users, n_pos, batch_size=1024, shuffle=False, drop_last=False)
+    users_n_pos = DataIterator(users, n_pos, batch_size=1024, shuffle=False,
+                               drop_last=False)
     neg_items_list = []
     for bat_user, batch_num in users_n_pos:
         batch_num = [num * neg_num for num in batch_num]
         exclusion = [user_pos_dict[u] for u in bat_user]
-        bat_neg_items = batch_randint_choice(item_num, batch_num, replace=True, exclusion=exclusion)
+        bat_neg_items = batch_randint_choice(item_num, batch_num, replace=True,
+                                             exclusion=exclusion)
 
         for user, neg_items, n_item in zip(bat_user, bat_neg_items, batch_num):
             if isinstance(neg_items, Iterable):
@@ -99,7 +106,8 @@ class PointwiseSampler(Sampler):
     Positive and negative items are labeled as `1` and  `0`, respectively.
     """
 
-    def __init__(self, dataset, neg_num=1, batch_size=1024, shuffle=True, drop_last=False):
+    def __init__(self, dataset, neg_num=1, batch_size=1024, shuffle=True,
+                 drop_last=False):
         """Initializes a new `PointwiseSampler` instance.
 
         Args:
@@ -126,15 +134,17 @@ class PointwiseSampler(Sampler):
         self.user_pos_len, users_list, self.pos_items_list = \
             _generate_positive_items(self.user_pos_dict)
 
-        self.users_list = users_list * (self.neg_num+1)
+        self.users_list = users_list * (self.neg_num + 1)
         len_pos_items = len(self.pos_items_list)
         pos_labels_list = [1.0] * len_pos_items
         neg_labels_list = [0.0] * (len_pos_items * self.neg_num)
         self.all_labels = pos_labels_list + neg_labels_list
 
     def __iter__(self):
-        neg_items_list = _sampling_negative_items(self.user_pos_len, self.neg_num,
-                                                  self.item_num, self.user_pos_dict)
+        neg_items_list = _sampling_negative_items(self.user_pos_len,
+                                                  self.neg_num,
+                                                  self.item_num,
+                                                  self.user_pos_dict)
 
         neg_items = np.array(neg_items_list, dtype=np.int32)
         neg_items = np.reshape(neg_items.T, [-1]).tolist()
@@ -167,7 +177,9 @@ class PairwiseSampler(Sampler):
     with length `batch_size`;  If `neg_num > 1`, `batch_neg_items` is an
     array like list with shape `(batch_size, neg_num)`.
     """
-    def __init__(self, dataset, neg_num=1, batch_size=1024, shuffle=True, drop_last=False):
+
+    def __init__(self, dataset, neg_num=1, batch_size=1024, shuffle=True,
+                 drop_last=False):
         """Initializes a new `PairwiseSampler` instance.
 
         Args:
@@ -196,10 +208,13 @@ class PairwiseSampler(Sampler):
             _generate_positive_items(self.user_pos_dict)
 
     def __iter__(self):
-        neg_items_list = _sampling_negative_items(self.user_pos_len, self.neg_num,
-                                                  self.item_num, self.user_pos_dict)
+        neg_items_list = _sampling_negative_items(self.user_pos_len,
+                                                  self.neg_num,
+                                                  self.item_num,
+                                                  self.user_pos_dict)
 
-        data_iter = DataIterator(self.users_list, self.pos_items_list, neg_items_list,
+        data_iter = DataIterator(self.users_list, self.pos_items_list,
+                                 neg_items_list,
                                  batch_size=self.batch_size,
                                  shuffle=self.shuffle, drop_last=self.drop_last)
         for bat_users, bat_pos_items, bat_neg_items in data_iter:
@@ -228,7 +243,8 @@ class TimeOrderPointwiseSampler(Sampler):
     Positive and negative items are labeled as `1` and  `0`, respectively.
     """
 
-    def __init__(self, dataset, high_order=1, neg_num=1, batch_size=1024, shuffle=True, drop_last=False):
+    def __init__(self, dataset, high_order=1, neg_num=1, batch_size=1024,
+                 shuffle=True, drop_last=False):
         """Initializes a new `TimeOrderPointwiseSampler` instance.
 
         Args:
@@ -257,7 +273,8 @@ class TimeOrderPointwiseSampler(Sampler):
         self.user_pos_dict = dataset.get_user_train_dict(by_time=True)
 
         self.user_pos_len, users_list, recent_items_list, self.pos_items_list = \
-            _generative_time_order_positive_items(self.user_pos_dict, high_order=high_order)
+            _generative_time_order_positive_items(self.user_pos_dict,
+                                                  high_order=high_order)
 
         self.users_list = users_list * (self.neg_num + 1)
         self.recent_items_list = recent_items_list * (self.neg_num + 1)
@@ -268,15 +285,19 @@ class TimeOrderPointwiseSampler(Sampler):
         self.all_labels = pos_labels_list + neg_labels_list
 
     def __iter__(self):
-        neg_items_list = _sampling_negative_items(self.user_pos_len, self.neg_num,
-                                                  self.item_num, self.user_pos_dict)
+        neg_items_list = _sampling_negative_items(self.user_pos_len,
+                                                  self.neg_num,
+                                                  self.item_num,
+                                                  self.user_pos_dict)
 
         neg_items = np.array(neg_items_list, dtype=np.int32)
         neg_items = np.reshape(neg_items.T, [-1]).tolist()
         all_next_items = self.pos_items_list + neg_items
 
-        data_iter = DataIterator(self.users_list, self.recent_items_list, all_next_items, self.all_labels,
-                                 batch_size=self.batch_size, shuffle=self.shuffle, drop_last=self.drop_last)
+        data_iter = DataIterator(self.users_list, self.recent_items_list,
+                                 all_next_items, self.all_labels,
+                                 batch_size=self.batch_size,
+                                 shuffle=self.shuffle, drop_last=self.drop_last)
 
         for bat_users, bat_recent_items, bat_next_items, bat_labels in data_iter:
             yield bat_users, bat_recent_items, bat_next_items, bat_labels
@@ -305,7 +326,9 @@ class TimeOrderPairwiseSampler(Sampler):
     `batch_size`; If `neg_num > 1`, `batch_neg_items` is an array like list with
     shape `(batch_size, neg_num)`.
     """
-    def __init__(self, dataset, high_order=1, neg_num=1, batch_size=1024, shuffle=True, drop_last=False):
+
+    def __init__(self, dataset, high_order=1, neg_num=1, batch_size=1024,
+                 shuffle=True, drop_last=False):
         """Initializes a new `TimeOrderPairwiseSampler` instance.
 
         Args:
@@ -334,14 +357,19 @@ class TimeOrderPairwiseSampler(Sampler):
         self.user_pos_dict = dataset.get_user_train_dict(by_time=True)
 
         self.user_pos_len, self.users_list, self.recent_items_list, self.pos_items_list = \
-            _generative_time_order_positive_items(self.user_pos_dict, high_order=high_order)
+            _generative_time_order_positive_items(self.user_pos_dict,
+                                                  high_order=high_order)
 
     def __iter__(self):
-        neg_items_list = _sampling_negative_items(self.user_pos_len, self.neg_num,
-                                                  self.item_num, self.user_pos_dict)
+        neg_items_list = _sampling_negative_items(self.user_pos_len,
+                                                  self.neg_num,
+                                                  self.item_num,
+                                                  self.user_pos_dict)
 
-        data_iter = DataIterator(self.users_list, self.recent_items_list, self.pos_items_list, neg_items_list,
-                                 batch_size=self.batch_size, shuffle=self.shuffle, drop_last=self.drop_last)
+        data_iter = DataIterator(self.users_list, self.recent_items_list,
+                                 self.pos_items_list, neg_items_list,
+                                 batch_size=self.batch_size,
+                                 shuffle=self.shuffle, drop_last=self.drop_last)
 
         for bat_users, bat_recent_items, bat_pos_items, bat_neg_items in data_iter:
             yield bat_users, bat_recent_items, bat_pos_items, bat_neg_items

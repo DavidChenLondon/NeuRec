@@ -293,7 +293,7 @@ class Dataset(object):
     def __repr__(self):
         return self.__str__()
 
-    def get_user_train_dict(self, by_time=False):
+    def get_user_train_dict(self, by_time=False) -> Dict[int, List[int]]:
         if by_time:
             train_dict = csr_to_user_dict_bytime(self.time_matrix,
                                                  self.train_matrix)
