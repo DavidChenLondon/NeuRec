@@ -185,6 +185,14 @@ class AbstractRecommender(object):
     def evaluate(self):
         return self.evaluator.evaluate(self)
 
+    @property
+    def num_users(self) -> int:
+        return self.dataset.num_users
+
+    @property
+    def num_items(self) -> int:
+        return self.dataset.num_items
+
 
 class SeqAbstractRecommender(AbstractRecommender, ABC):
     def __init__(self, conf):
@@ -199,14 +207,6 @@ class SeqAbstractRecommender(AbstractRecommender, ABC):
     @property
     def user_pos_train(self):
         return self.train_dict  # just an alias
-
-    @property
-    def num_users(self) -> int:
-        return self.dataset.num_users
-
-    @property
-    def num_items(self) -> int:
-        return self.dataset.num_items
 
 
 class SocialAbstractRecommender(AbstractRecommender, ABC):
