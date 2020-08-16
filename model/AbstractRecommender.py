@@ -162,6 +162,8 @@ class AbstractRecommender(object):
                       f" {self.tf_cache_path}")
                 self.logger.info(f"Restored session from tf_cache_path:"
                                  f" {self.tf_cache_path}")
+            session.run(tf.initialize_all_variables())
+            session.run(tf.global_variables_initializer())
             cache__sessions[self.cache_key] = session
         return cache__sessions[self.cache_key]
 
