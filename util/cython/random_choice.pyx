@@ -3,11 +3,16 @@
 """
 @author: Zhongchuan Sun
 """
-from libcpp.unordered_set cimport unordered_set as cset
-from libcpp.vector cimport vector as cvector
-from libc.stdlib cimport rand, srand
-ctypedef cset[int] int_set
+from libc.stdlib cimport
 
+rand
+from libcpp.unordered_set cimport
+
+unordered_set as cset
+from libcpp.vector cimport
+
+vector as cvector
+ctypedef cset[int] int_set
 
 cdef llrand():
     cdef unsigned long long r = 0
@@ -15,7 +20,6 @@ cdef llrand():
     for i in range(5):
         r = (r << 15) | (rand() & 0x7FFF)
     return r & 0xFFFFFFFFFFFFFFFFULL
-
 
 def randint_choice(high, size=1, replace=True, p=None, exclusion=None):
     """Sample random integers from [0, high).
@@ -33,7 +37,7 @@ def randint_choice(high, size=1, replace=True, p=None, exclusion=None):
         raise ValueError("The number of 'exclusion' is greater than 'high'.")
 
     len_exclusion = len(exclusion) if exclusion is not None else 0
-    if replace is False and (high-len_exclusion <= size):
+    if replace is False and (high - len_exclusion <= size):
         raise ValueError("There is not enough integers to be sampled.")
 
     cdef int_set omission
@@ -79,11 +83,14 @@ def batch_randint_choice(high, size, replace=True, p=None, exclusion=None):
         raise NotImplementedError
 
     if exclusion is not None and len(size) != len(exclusion):
-        raise ValueError("The shape of 'exclusion' is not compatible with the shape of 'size'!")
+        raise ValueError(
+            "The shape of 'exclusion' is not compatible with the shape of 'size'!")
 
     results = []
     for idx in range(len(size)):
         p_tmp = p[idx] if p is not None else None
         exc = exclusion[idx] if exclusion is not None else None
-        results.append(randint_choice(high, size=size[idx], replace=replace, p=p_tmp, exclusion=exc))
+        results.append(
+            randint_choice(high, size=size[idx], replace=replace, p=p_tmp,
+                           exclusion=exc))
     return results

@@ -307,13 +307,15 @@ class SASRec(SeqAbstractRecommender):
         self.is_training = tf.placeholder(tf.bool, name="training_flag")
 
         l2_regularizer = tf.contrib.layers.l2_regularizer(self.l2_emb)
-        item_embeddings = tf.get_variable('item_embeddings', dtype=tf.float32,
-                                          shape=[self.num_items,
-                                                 self.hidden_units],
-                                          regularizer=l2_regularizer)
 
         zero_pad = tf.zeros([1, self.hidden_units], name="padding")
-        item_embeddings = tf.concat([item_embeddings, zero_pad], axis=0)
+        item_embeddings = tf.concat([
+            tf.get_variable('item_embeddings', dtype=tf.float32,
+                            shape=[self.num_items,
+                                   self.hidden_units],
+                            regularizer=l2_regularizer),
+            zero_pad,
+        ], axis=0)
         self.item_embeddings = item_embeddings * (self.hidden_units ** 0.5)
 
         self.position_embeddings = tf.get_variable('position_embeddings',
@@ -437,12 +439,15 @@ class SASRec(SeqAbstractRecommender):
         all_users = DataIterator(list(self.user_pos_train.keys()),
                                  batch_size=1024, shuffle=False)
         for bat_users in all_users:
+            # bat_users2 = [u for u in bat_users  # at least two items
+            #              if len(self.user_pos_train[u]) >= 2]
             bat_seq = [self.user_pos_train[u][:-1] for u in bat_users]
             bat_pos = [self.user_pos_train[u][1:] for u in bat_users]
             n_neg_items = [len(pos) for pos in bat_pos]
             exclusion = [self.user_pos_train[u] for u in bat_users]
             bat_neg = batch_randint_choice(self.num_items, n_neg_items,
-                                           replace=True, exclusion=exclusion)
+                                           replace=True,
+                                           exclusion=exclusion)
 
             # padding
             bat_seq = pad_sequences(bat_seq, value=self.num_items,
