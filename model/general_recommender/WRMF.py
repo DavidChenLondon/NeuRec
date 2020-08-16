@@ -7,7 +7,7 @@ import numpy as np
 import tensorflow as tf
 
 from NeuRec.model.AbstractRecommender import AbstractRecommender, LossRecorder
-from NeuRec.util import timer, tool
+from NeuRec.util import tool
 
 
 class WRMF(AbstractRecommender):
@@ -100,13 +100,9 @@ class WRMF(AbstractRecommender):
             self.log_loss_and_evaluate(epoch, lr)
         self.save_tf_model()
 
-    @timer
-    def evaluate(self):
+    def predict(self, user_ids, candidate_items_userids):
         self._cur_user_embeddings, self._cur_item_embeddings = self.sess.run(
             [self.user_embeddings, self.item_embeddings])
-        return self.evaluator.evaluate(self)
-
-    def predict(self, user_ids, candidate_items_userids):
         if candidate_items_userids is None:
             user_embed = self._cur_user_embeddings[user_ids]
             ratings = np.matmul(user_embed, self._cur_item_embeddings.T)
