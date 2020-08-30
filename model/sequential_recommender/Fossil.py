@@ -200,6 +200,7 @@ class Fossil(SeqAbstractRecommender):
                     lr.add_loss(loss)
 
             self.log_loss_and_evaluate(epoch, lr)
+        self.save_tf_model()
 
     def predict(self, user_ids, candidate_items_userids):
         ratings = []

@@ -11,7 +11,6 @@ from NeuRec.model.AbstractRecommender import SeqAbstractRecommender, \
     LossRecorder
 from NeuRec.util import l2_loss
 from NeuRec.util import learner, tool
-from NeuRec.util import timer
 
 
 class NPE(SeqAbstractRecommender):
@@ -114,10 +113,7 @@ class NPE(SeqAbstractRecommender):
                                         feed_dict=feed_dict)
                 lr.add_loss(loss)
             self.log_loss_and_evaluate(epoch, lr)
-
-    @timer
-    def evaluate(self):
-        return self.evaluator.evaluate(self)
+        self.save_tf_model()
 
     def predict(self, user_ids, candidate_items_userids):
         ratings = []

@@ -212,6 +212,7 @@ class GRU4Rec(SeqAbstractRecommender):
                         state[i][mask] = 0
 
             self.log_loss_and_evaluate(epoch, lr)
+        self.save_tf_model()
 
     def _get_user_embeddings(self):
         users = np.arange(self.num_users, dtype=np.int32)

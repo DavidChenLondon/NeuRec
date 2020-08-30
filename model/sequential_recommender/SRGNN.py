@@ -220,6 +220,7 @@ class SRGNN(SeqAbstractRecommender):
                 self.sess.run(self.train_opt, feed_dict=feed)
 
             self.log_loss_and_evaluate(epoch, lr)
+        self.save_tf_model()
 
     def _shuffle_index(self, seq_index):
         index_chunks = DataIterator(seq_index, batch_size=self.batch_size * 32,
