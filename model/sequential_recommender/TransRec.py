@@ -161,6 +161,7 @@ class TransRec(SeqAbstractRecommender):
                     lr.add_loss(loss)
 
             self.log_loss_and_evaluate(epoch, lr)
+        self.save_tf_model()
 
     def predict(self, user_ids, items=None):
         users = DataIterator(user_ids, batch_size=64, shuffle=False,
