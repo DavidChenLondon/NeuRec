@@ -73,6 +73,8 @@ class LossRecorder(object):
 
 
 class AbstractRecommender(object):
+    DEFAULT_RANDOM_STATE: int = 42
+
     def __init__(self, conf: Configurator):
         self.conf: Configurator = conf
         self.report: EvaluationReport = EvaluationReport(conf["metric"])
@@ -83,7 +85,12 @@ class AbstractRecommender(object):
         model_name = self.conf["recommender"]
         timestamp = time.time()
         self.run_id = "%s_%.8f" % (self.param_str[:150], timestamp)
+
+        self.random_state = conf.lib_arg.get("random_state",
+                                             self.DEFAULT_RANDOM_STATE)
         self.cache_key = f"{self.param_str}_{model_name}"
+        if self.random_state != self.DEFAULT_RANDOM_STATE:
+            self.cache_key = f"{self.cache_key}_rs={self.random_state}"
 
         # generate logger name
         self.cache_dir = os.path.join(f"{project_dir}/cache/NeuRec/",
