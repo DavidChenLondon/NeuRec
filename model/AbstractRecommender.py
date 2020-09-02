@@ -176,10 +176,6 @@ class AbstractRecommender(object):
         return cache__sessions[self.cache_key]
 
     def save_tf_model(self):
-        # note: try to fix error below
-        # ValueError: At least two variables have the same name: embedding/embeddings_IL/Adam  # noqa:E501
-        tf.reset_default_graph()
-
         saver = tf.train.Saver()
         # TODO add checkpoints
         print(f"saving to {self.tf_cache_path}")
