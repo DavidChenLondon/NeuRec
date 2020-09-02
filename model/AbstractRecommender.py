@@ -1,4 +1,5 @@
 import os
+import shutil
 import time
 from abc import ABC
 from pathlib import Path
@@ -181,6 +182,8 @@ class AbstractRecommender(object):
 
         saver = tf.train.Saver()
         # TODO add checkpoints
+        print(f"saving to {self.tf_cache_path}")
+        shutil.rmtree(self.tf_cache_path, ignore_errors=True)
         saver.save(self.sess, self.tf_cache_path, save_debug_info=True)
         self.logger.info(f"Saved session to tf_cache_path:"
                          f" {self.tf_cache_path}")
