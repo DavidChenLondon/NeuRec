@@ -142,10 +142,10 @@ class HRM(SeqAbstractRecommender):
 
             self.log_loss_and_evaluate(epoch, lr)
 
-    try:
-        self.save_tf_model()
-    except Exception as e:
-        print(e)  # TODO fix me
+        try:
+            self.save_tf_model()
+        except Exception as e:
+            print(e)  # TODO fix me
 
     @timer
     def evaluate(self) -> str:
