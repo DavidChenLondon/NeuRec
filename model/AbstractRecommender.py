@@ -3,18 +3,18 @@ import shutil
 import time
 from abc import ABC
 from pathlib import Path
-from typing import Dict, List, Union
 
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp
 import tensorflow as tf
+from typing import Dict, List, Union
 
 from NeuRec.data.dataset import Dataset
 from NeuRec.evaluator import ProxyEvaluator
 from NeuRec.util import Logger, Configurator
 from NeuRec.util.tool import timer
-from smk_recsys.utils.const import project_dir  # TODO fix it
+from smk_recsys.utils.const import PROJECT_DIR
 
 # note: keep below caches in memory only
 cache__loggers: Dict[str, Logger] = {}
@@ -94,9 +94,9 @@ class AbstractRecommender(object):
             self.cache_key = f"{self.cache_key}_rs={self.random_state}"
 
         # generate logger name
-        self.cache_dir = os.path.join(f"{project_dir}/cache/NeuRec/",
+        self.cache_dir = os.path.join(f"{PROJECT_DIR}/cache/NeuRec/",
                                       self.dataset_name, model_name)
-        self.log_dir = os.path.join(f"{project_dir}/log/NeuRec/",
+        self.log_dir = os.path.join(f"{PROJECT_DIR}/log/NeuRec/",
                                     self.dataset_name, model_name)
         Path(self.cache_dir).mkdir(parents=True, exist_ok=True)
         Path(self.log_dir).mkdir(parents=True, exist_ok=True)
